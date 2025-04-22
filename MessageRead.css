@@ -1,0 +1,233 @@
+﻿/* =========================================================
+   MessageRead.css – v15
+   • .truncate class for graceful ellipsis (dark‑mode aware)
+   • No other changes – retains v14 badge tweak & dark‑mode fix
+   ========================================================= */
+
+:root {
+    --grad-start: #f7f7f7;
+    --grad-end: #e4e4e4;
+    --bg-card: rgba(255,255,255,.12);
+    --border: rgba(0,0,0,.12);
+    --text: #000;
+    --text-sub: #333;
+    --badge-ok: #15c75c;
+    --badge-bad: #ff5252;
+    --banner-bg: rgba(255,255,255,.26);
+}
+
+body.dark-mode {
+    --grad-start: #181c46;
+    --grad-end: #402a6f;
+    --bg-card: rgba(0,0,0,.38);
+    --border: rgba(255,255,255,.12);
+    --text: #e8eaff;
+    --text-sub: #b4b7d4;
+    --banner-bg: rgba(0,0,0,.55);
+    *
+
+{
+    color: var(--text) !important
+}
+
+svg, svg * {
+    fill: var(--text) !important
+}
+
+}
+
+/* background / reset */
+html, body {
+    margin: 0;
+    padding: 0;
+    min-height: 100%;
+    box-sizing: border-box;
+    font-family: "Segoe UI",Tahoma,Geneva,Verdana,sans-serif;
+    color: var(--text);
+    background: radial-gradient(150% 120% at 20% 0%,rgba(0,0,0,.04) 0%,transparent 70%), linear-gradient(135deg,var(--grad-start),var(--grad-end));
+    background-attachment: fixed
+}
+
+.ms-Grid, * {
+    color: inherit
+}
+
+/* header / toggle (unchanged from v14) */
+#content-header {
+    backdrop-filter: blur(14px) saturate(140%);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin: 20px 16px 12px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    box-shadow: 0 6px 24px rgba(0,0,0,.25)
+}
+
+.theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer
+}
+
+#themeToggle {
+    appearance: none;
+    width: 40px;
+    height: 22px;
+    background: #ccc;
+    border-radius: 22px;
+    position: relative;
+    outline: none;
+    transition: .25s
+}
+
+    #themeToggle:before {
+        content: "";
+        position: absolute;
+        width: 18px;
+        height: 18px;
+        top: 2px;
+        left: 2px;
+        background: #fff;
+        border-radius: 50%;
+        transition: .25s
+    }
+
+    #themeToggle:checked {
+        background: #00b7ff
+    }
+
+        #themeToggle:checked:before {
+            transform: translateX(18px)
+        }
+
+.theme-label {
+    font-size: 12px;
+    color: var(--text-sub)
+}
+
+/* cards */
+.card {
+    backdrop-filter: blur(14px) saturate(145%);
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 22px;
+    margin: 12px 16px;
+    box-shadow: 0 5px 22px rgba(0,0,0,.15);
+    transition: transform .18s ease,box-shadow .18s ease
+}
+
+    .card:hover {
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 9px 28px rgba(0,0,0,.22)
+    }
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px
+}
+
+    .section-title svg {
+        width: 18px;
+        height: 18px;
+        fill: var(--text);
+        opacity: .85
+    }
+
+/* badges */
+.badge {
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: #fff;
+    font-weight: 600;
+    white-space: nowrap
+}
+
+.badge-verified {
+    background: var(--badge-ok)
+}
+
+.badge-unverified {
+    background: var(--badge-bad)
+}
+
+.badge-personal {
+    background: #ef6c00
+}
+
+.badge-business {
+    background: #4fc3f7
+}
+
+.inline-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 6px;
+    font-size: 13px;
+    border: 2px solid #ff1744;
+    background: transparent;
+    color: var(--text);
+    border-radius: 4px
+}
+
+.badge-cell {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px
+}
+
+.auth-summary {
+    margin-top: 6px;
+    font-size: 12px
+}
+
+.auth-pass {
+    color: var(--badge-ok)
+}
+
+.auth-fail {
+    color: var(--badge-bad)
+}
+
+/* ellipsis truncate */
+.truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: 100%
+}
+
+/* url span */
+.short-url {
+    max-width: 100%;
+    display: inline-block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis
+}
+
+/* grid spacing */
+.ms-Grid-row {
+    margin-bottom: 6px
+}
+
+@media(max-width:480px) {
+    .badge {
+        display: block;
+        margin-top: 6px
+    }
+
+    .inline-badge {
+        margin-bottom: 6px
+    }
+}

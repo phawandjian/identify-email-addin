@@ -1,0 +1,152 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!--Created:ce44715c-8c4e-446b-879c-ea9ebe0f09c8-->
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
+  xsi:type="MailApp">
+
+  <Id>d46def6c-d063-4ec2-9a0c-0d2a76abca65</Id>
+  <Version>1.0.0.5</Version>
+  <ProviderName>IdentifyEmail</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+
+  <DisplayName DefaultValue="IdentifyEmail"/>
+  <Description DefaultValue="Checks Sender Details For Your Safety."/>
+
+  <IconUrl DefaultValue="https://localhost:44340/Images/icon64.png"/>
+  <HighResolutionIconUrl DefaultValue="https://localhost:44340/Images/icon128.png"/>
+
+  <SupportUrl DefaultValue="https://localhost:44340"/>
+
+  <AppDomains>
+    <AppDomain>https://localhost:44340</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Mailbox"/>
+  </Hosts>
+
+  <!-- ↑↑ CHANGE #1: MinVersion raised to 1.5 -->
+  <Requirements>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.5"/>
+    </Sets>
+  </Requirements>
+
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://localhost:44340/MessageRead.html"/>
+        <RequestedHeight>250</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+
+  <Permissions>ReadWriteItem</Permissions>
+
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
+  </Rule>
+
+  <VersionOverrides
+    xmlns="http://schemas.microsoft.com/office/mailappversionoverrides"
+    xsi:type="VersionOverridesV1_0">
+
+    <VersionOverrides
+      xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1"
+      xsi:type="VersionOverridesV1_1">
+
+      <!-- ↑↑ CHANGE #1 repeated inside VersionOverrides -->
+      <Requirements>
+        <bt:Sets DefaultMinVersion="1.5">
+          <bt:Set Name="Mailbox"/>
+        </bt:Sets>
+      </Requirements>
+
+      <Hosts>
+        <Host xsi:type="MailHost">
+          <DesktopFormFactor>
+            <FunctionFile resid="functionFile"/>
+
+            <ExtensionPoint xsi:type="MessageReadCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="msgReadGroup">
+                  <Label resid="groupLabel"/>
+
+                  <!-- Task‑pane button -->
+                  <Control xsi:type="Button" id="msgReadOpenPaneButton">
+                    <Label resid="taskPaneButtonLabel"/>
+                    <Supertip>
+                      <Title resid="taskPaneButtonLabel"/>
+                      <Description resid="taskPaneButtonDescription"/>
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="icon16"/>
+                      <bt:Image size="32" resid="icon32"/>
+                      <bt:Image size="80" resid="icon80"/>
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane">
+                      <SourceLocation resid="messageReadTaskPaneUrl"/>
+                      <!-- ↓↓ CHANGE #2: enable native pinning -->
+                      <SupportsPinning>true</SupportsPinning>
+                    </Action>
+                  </Control>
+                </Group>
+
+                <!-- Optional custom “Pin to Ribbon” button (unchanged) -->
+                <Group id="msgReadSuperTipGroup">
+                  <Label resid="paneReadButtonLabel"/>
+                  <Control xsi:type="Button" id="msgReadPinButton">
+                    <Label resid="paneReadButtonLabel"/>
+                    <Supertip>
+                      <Title resid="paneReadSuperTipTitle"/>
+                      <Description resid="paneReadSuperTipDescription"/>
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="pin16"/>
+                      <bt:Image size="32" resid="pin32"/>
+                      <bt:Image size="80" resid="pin80"/>
+                    </Icon>
+                    <Action xsi:type="ExecuteFunction">
+                      <FunctionName>pinToRibbon</FunctionName>
+                    </Action>
+                  </Control>
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+          </DesktopFormFactor>
+        </Host>
+      </Hosts>
+
+      <Resources>
+        <bt:Images>
+          <bt:Image id="icon16" DefaultValue="https://localhost:44340/Images/icon16.png"/>
+          <bt:Image id="icon32" DefaultValue="https://localhost:44340/Images/icon32.png"/>
+          <bt:Image id="icon80" DefaultValue="https://localhost:44340/Images/icon80.png"/>
+          <bt:Image id="pin16" DefaultValue="https://localhost:44340/Images/pin16.png"/>
+          <bt:Image id="pin32" DefaultValue="https://localhost:44340/Images/pin32.png"/>
+          <bt:Image id="pin80" DefaultValue="https://localhost:44340/Images/pin80.png"/>
+        </bt:Images>
+
+        <bt:Urls>
+          <bt:Url id="functionFile" DefaultValue="https://localhost:44340/Functions/FunctionFile.html"/>
+          <bt:Url id="messageReadTaskPaneUrl" DefaultValue="https://localhost:44340/MessageRead.html"/>
+        </bt:Urls>
+
+        <bt:ShortStrings>
+          <bt:String id="groupLabel" DefaultValue="IdentifyEmail"/>
+          <bt:String id="taskPaneButtonLabel" DefaultValue="Identify Sender"/>
+          <bt:String id="paneReadButtonLabel" DefaultValue="Pin to Ribbon"/>
+          <bt:String id="paneReadSuperTipTitle" DefaultValue="Pin to Office Ribbon"/>
+        </bt:ShortStrings>
+
+        <bt:LongStrings>
+          <bt:String id="taskPaneButtonDescription" DefaultValue="Shows sender details."/>
+          <bt:String id="paneReadSuperTipDescription" DefaultValue="Pins this add-in to your Office ribbon for quick access."/>
+        </bt:LongStrings>
+      </Resources>
+    </VersionOverrides>
+  </VersionOverrides>
+</OfficeApp>

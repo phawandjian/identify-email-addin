@@ -1,0 +1,167 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <title>Detected Results</title>
+
+    <!-- libs -->
+    <script src="Scripts/jquery-3.6.0.js"></script>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <script src="Scripts/MessageBanner.js"></script>
+
+    <!-- our assets -->
+    <link href="MessageRead.css?v=13" rel="stylesheet" />
+    <script src="MessageRead.js?v=35"></script>
+
+    <!-- Fabric core -->
+    <link rel="stylesheet"
+          href="https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/office-ui-fabric-core/11.1.0/css/fabric.min.css">
+
+    <!-- collapsible helpers -->
+    <style>
+        .collapsible .section-title {
+            cursor: pointer
+        }
+
+        .collapsible .chevron {
+            transition: transform .2s;
+            flex-shrink: 0
+        }
+
+        .collapsed .chevron {
+            transform: rotate(-90deg)
+        }
+
+        .collapsed .card-body {
+            display: none
+        }
+    </style>
+</head>
+<body class="ms-Fabric" dir="ltr">
+
+    <!-- HEADER -->
+    <div id="content-header">
+        <label class="theme-toggle">
+            <input type="checkbox" id="themeToggle" aria-label="Toggle dark mode">
+            <span class="theme-label">Dark&nbsp;Mode</span>
+        </label>
+    </div>
+
+    <!-- SENDER TYPE -->
+    <div class="card" id="class-card">
+        <div class="section-title">
+            <svg viewBox="0 0 16 16"><path d="M1 8h14M8 1v14" /></svg>
+            <span>Sender Type</span>
+        </div>
+        <span id="classBadgeContainer"></span>
+    </div>
+
+    <!-- SECURITY FLAGS -->
+    <div class="card" id="security-card">
+        <div class="section-title">
+            <svg viewBox="0 0 16 16"><path d="M8 1l6 2-2 11H4L2 3z" /></svg>
+            <span>Security Flags</span>
+        </div>
+        <span id="securityBadgeContainer" class="badge-cell"></span>
+    </div>
+
+    <!-- VERIFIED SENDER -->
+    <div class="card collapsible collapsed" id="verified-card">
+        <div class="section-title">
+            <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
+            <svg viewBox="0 0 16 16"><path d="M8 1l6 2v4c0 3.5-2.5 6.9-6 8-3.5-1.1-6-4.5-6-8V3l6-2zm3.35 4.15l-4.24 4.24-1.76-1.77-.7.71 2.46 2.46 4.95-4.95-.71-.69z" /></svg>
+            <span>Verified Sender</span>
+        </div>
+        <div class="card-body">
+            <span id="verifiedBadgeContainer"></span>
+        </div>
+    </div>
+
+    <!-- ATTACHMENTS & LINKS -->
+    <div class="card collapsible collapsed" id="threats-card">
+        <div class="section-title">
+            <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
+            <svg viewBox="0 0 16 16"><path d="M1 8h14M8 1v14" /></svg>
+            <span>Attachments &amp; Links</span>
+            <span id="attachBadgeContainer" class="badge-cell"></span>
+        </div>
+        <div class="card-body">
+            <div class="ms-Grid">
+                <div class="ms-Grid-row">
+                    <div class="ms-Grid-col ms-sm5">attachments</div>
+                    <div id="attachments" class="ms-Grid-col ms-sm7"></div>
+                </div>
+                <div class="ms-Grid-row">
+                    <div class="ms-Grid-col ms-sm5">urls</div>
+                    <div id="urls" class="ms-Grid-col ms-sm7"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AUTHENTICATION RESULTS -->
+    <div class="card collapsible collapsed" id="auth-card">
+        <div class="section-title">
+            <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
+            <svg viewBox="0 0 16 16"><path d="M8 .8l7.2 3-1 9.2L8 15.2.8 13l-1-9.2z" /></svg>
+            <span>Authentication Results</span>
+        </div>
+        <div class="card-body">
+            <span id="authContainer"></span>
+        </div>
+    </div>
+
+    <!-- DETAILED MESSAGE PROPS -->
+    <div class="card collapsible collapsed" id="detailed-props-card">
+        <div class="section-title">
+            <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
+            <span>Detailed Message Properties</span>
+        </div>
+        <div class="card-body">
+            <div class="ms-Grid">
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">from</div><div id="from" class="ms-Grid-col ms-sm7"></div></div>
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">sender</div><div id="sender" class="ms-Grid-col ms-sm7"></div></div>
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">to</div><div id="to" class="ms-Grid-col ms-sm7"></div></div>
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">cc</div><div id="cc" class="ms-Grid-col ms-sm7"></div></div>
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">subject</div><div id="subject" class="ms-Grid-col ms-sm7"></div></div>
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">conversationId</div><div id="conversationId" class="ms-Grid-col ms-sm7 long-id"></div></div>
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">internetMessageId</div><div id="internetMessageId" class="ms-Grid-col ms-sm7 long-id"></div></div>
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">normalizedSubject</div><div id="normalizedSubject" class="ms-Grid-col ms-sm7"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ITEM PROPS -->
+    <div class="card collapsible collapsed" id="item-props-card">
+        <div class="section-title">
+            <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
+            <span>Item properties</span>
+        </div>
+        <div class="card-body">
+            <div class="ms-Grid">
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">dateTimeCreated</div><div id="dateTimeCreated" class="ms-Grid-col ms-sm7"></div></div>
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">dateTimeModified</div><div id="dateTimeModified" class="ms-Grid-col ms-sm7"></div></div>
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">itemClass</div><div id="itemClass" class="ms-Grid-col ms-sm7"></div></div>
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">itemId</div><div id="itemId" class="ms-Grid-col ms-sm7 long-id"></div></div>
+                <div class="ms-Grid-row"><div class="ms-Grid-col ms-sm5">itemType</div><div id="itemType" class="ms-Grid-col ms-sm7"></div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MESSAGE BANNER -->
+    <div class="MessageBanner">
+        <div class="MessageBanner-content">
+            <div class="MessageBanner-text">
+                <div class="MessageBanner-clipper">
+                    <div id="notificationHeader" class="ms-font-m-plus ms-fontWeight-semibold"></div>
+                    <div id="notificationBody" class="ms-font-m ms-fontWeight-semilight"></div>
+                </div>
+            </div>
+            <button class="MessageBanner-expand" style="display:none"><i class="ms-Icon ms-Icon--chevronsDown"></i></button>
+            <div class="MessageBanner-action"></div>
+        </div>
+        <button class="MessageBanner-close"><i class="ms-Icon ms-Icon--ChromeClose"></i></button>
+    </div>
+</body>
+</html>
