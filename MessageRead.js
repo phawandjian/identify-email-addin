@@ -9,9 +9,9 @@
     /* ---------- 1. CONSTANTS ---------- */
     const THEME_KEY = "bkEmailAddinTheme";
     const verifiedSenders = [
-        "support@bizkeyhub.com",
-        "ariana@bizkeyhub.com",
-        "hawandj@gmail.com"
+        "support@microsoft.com",
+        "support@amazon.com",
+        "support@google.com"
     ];
 
     // A large set of reputable-company domains for domain-based verification:
