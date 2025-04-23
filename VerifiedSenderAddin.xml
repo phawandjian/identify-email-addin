@@ -8,20 +8,23 @@
   xsi:type="MailApp">
 
   <Id>d46def6c-d063-4ec2-9a0c-0d2a76abca65</Id>
-  <Version>1.0.0.5</Version>
+  <Version>1.0.0.6</Version>
   <ProviderName>IdentifyEmail</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
 
   <DisplayName DefaultValue="IdentifyEmail"/>
   <Description DefaultValue="Checks Sender Details For Your Safety."/>
 
-  <IconUrl DefaultValue="https://localhost:44340/Images/icon64.png"/>
-  <HighResolutionIconUrl DefaultValue="https://localhost:44340/Images/icon128.png"/>
+  <!-- Updated icons to point to GitHub pages -->
+  <IconUrl DefaultValue="https://phawandjian.github.io/identify-email-addin/Images/icon64.png"/>
+  <HighResolutionIconUrl DefaultValue="https://phawandjian.github.io/identify-email-addin/Images/icon128.png"/>
 
-  <SupportUrl DefaultValue="https://localhost:44340"/>
+  <!-- Updated support URL to GitHub Pages root -->
+  <SupportUrl DefaultValue="https://phawandjian.github.io/identify-email-addin"/>
 
   <AppDomains>
-    <AppDomain>https://localhost:44340</AppDomain>
+    <!-- If referencing GitHub Pages domain, keep this. Adjust if using raw or custom domain. -->
+    <AppDomain>https://phawandjian.github.io</AppDomain>
   </AppDomains>
 
   <Hosts>
@@ -38,7 +41,8 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <SourceLocation DefaultValue="https://localhost:44340/MessageRead.html"/>
+        <!-- Task pane HTML now points to GitHub pages -->
+        <SourceLocation DefaultValue="https://phawandjian.github.io/identify-email-addin/MessageRead.html"/>
         <RequestedHeight>250</RequestedHeight>
       </DesktopSettings>
     </Form>
@@ -122,17 +126,18 @@
 
       <Resources>
         <bt:Images>
-          <bt:Image id="icon16" DefaultValue="https://localhost:44340/Images/icon16.png"/>
-          <bt:Image id="icon32" DefaultValue="https://localhost:44340/Images/icon32.png"/>
-          <bt:Image id="icon80" DefaultValue="https://localhost:44340/Images/icon80.png"/>
-          <bt:Image id="pin16" DefaultValue="https://localhost:44340/Images/pin16.png"/>
-          <bt:Image id="pin32" DefaultValue="https://localhost:44340/Images/pin32.png"/>
-          <bt:Image id="pin80" DefaultValue="https://localhost:44340/Images/pin80.png"/>
+          <bt:Image id="icon16" DefaultValue="https://phawandjian.github.io/identify-email-addin/Images/icon16.png"/>
+          <bt:Image id="icon32" DefaultValue="https://phawandjian.github.io/identify-email-addin/Images/icon32.png"/>
+          <bt:Image id="icon80" DefaultValue="https://phawandjian.github.io/identify-email-addin/Images/icon80.png"/>
+          <bt:Image id="pin16" DefaultValue="https://phawandjian.github.io/identify-email-addin/Images/pin16.png"/>
+          <bt:Image id="pin32" DefaultValue="https://phawandjian.github.io/identify-email-addin/Images/pin32.png"/>
+          <bt:Image id="pin80" DefaultValue="https://phawandjian.github.io/identify-email-addin/Images/pin80.png"/>
         </bt:Images>
 
         <bt:Urls>
-          <bt:Url id="functionFile" DefaultValue="https://localhost:44340/Functions/FunctionFile.html"/>
-          <bt:Url id="messageReadTaskPaneUrl" DefaultValue="https://localhost:44340/MessageRead.html"/>
+          <!-- FunctionFile references now point to GitHub pages -->
+          <bt:Url id="functionFile" DefaultValue="https://phawandjian.github.io/identify-email-addin/Functions/FunctionFile.html"/>
+          <bt:Url id="messageReadTaskPaneUrl" DefaultValue="https://phawandjian.github.io/identify-email-addin/MessageRead.html"/>
         </bt:Urls>
 
         <bt:ShortStrings>
