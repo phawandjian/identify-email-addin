@@ -1,4 +1,4 @@
-﻿/* MessageRead.js – v37
+﻿/* MessageRead.js – v38
    Changes in v36:
    • Arrows inverted in HTML/CSS (see .chevron transforms there).
    • Added "kaseya.net" to verifiedDomains set.
@@ -6,6 +6,12 @@
    Changes in v37:
    • Attachments separated into their own collapsible card (#attachments-card).
    • The click-handler for #attachBadgeContainer now expands #attachments-card instead of #threats-card.
+
+   Changes in v38 (internal domain trust):
+   • Added logic to trust internal (business) senders if envelope domain and From domain both match the user's
+     own business domain, and if SPF/DKIM/DMARC are "pass" (non-personal domain).
+   • Introduced window.__userDomain and window.__internalSenderTrusted to coordinate this logic in checkAuthHeaders
+     and senderClassification without removing or breaking existing code.
 */
 
 (function () {
@@ -117,6 +123,11 @@
 
     window._identifyEmailVersion = "v37";
 
+    // BEGIN v38 addition: track user's domain and internal trust
+    window.__userDomain = "";
+    window.__internalSenderTrusted = false;
+    // END v38 addition
+
     /* ---------- 2. OFFICE READY ---------- */
     Office.onReady(() => {
         $(document).ready(() => {
@@ -160,6 +171,10 @@
     function loadProps() {
         const it = Office.context.mailbox.item;
         if (!it) return;
+
+        // v38 addition: track user domain globally
+        window.__userDomain = baseDom(dom(Office.context.mailbox.userProfile.emailAddress));
+        window.__internalSenderTrusted = false;
 
         // meta
         $("#dateTimeCreated").text(it.dateTimeCreated.toLocaleString());
@@ -296,7 +311,8 @@
         const base = baseDom(dom(email));
 
         // Enhanced check: entire email in 'verifiedSenders' OR domain in 'verifiedDomains'.
-        const isVerified = verifiedSenders.includes(email) || verifiedDomains.has(base);
+        // v38 addition: also consider internalSenderTrusted
+        const isVerified = verifiedSenders.includes(email) || verifiedDomains.has(base) || window.__internalSenderTrusted;
 
         const vCls = isVerified ? "badge-verified" : "badge-unverified";
         const personal = personalDomains.has(base);
@@ -339,8 +355,8 @@
                 }
             });
 
-            const summary = `
-                <div class='auth-summary ${spf === "pass" && dkim === "pass" && dmarc === "pass" ? "auth-pass" : "auth-fail"}'>
+            const summary =
+                `<div class='auth-summary ${(spf === "pass" && dkim === "pass" && dmarc === "pass") ? "auth-pass" : "auth-fail"}'>
                     SPF=${spf || "N/A"} | DKIM=${dkim || "N/A"} | DMARC=${dmarc || "N/A"}
                 </div>`;
 
@@ -360,6 +376,21 @@
             }
             if (mis.length || (spf && spf !== "pass") || (dkim && dkim !== "pass") || (dmarc && dmarc !== "pass")) {
                 $("#auth-card").removeClass("collapsed");
+            }
+
+            // v38 addition: Safest internal trust logic:
+            // If fromBase and envDom both match userDomain, that domain is not personal, and SPF/DKIM/DMARC are all pass,
+            // then we trust this as an internal business sender.
+            if (
+                window.__userDomain &&
+                fromBase === window.__userDomain &&
+                envDom === window.__userDomain &&
+                !personalDomains.has(window.__userDomain) &&
+                spf === "pass" &&
+                dkim === "pass" &&
+                dmarc === "pass"
+            ) {
+                window.__internalSenderTrusted = true;
             }
         });
     }
