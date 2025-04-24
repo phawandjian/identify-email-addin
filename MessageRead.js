@@ -1,23 +1,14 @@
-﻿/***********************************************
- * MessageRead.js – v37
- * 
- * Changes from v36:
- *   • Reordered cards in HTML (Verified > Type > Security > Attachments > Links > Auth > Detailed Props > Item Props).
- *   • Split “Attachments” & “Links” into separate collapsible cards instead of one “threats” card.
- *   • Link-based badges now go in #linksBadgeContainer (instead of #securityBadgeContainer).
- *   • No red border for inline-badge (CSS side).
- * 
- * But all security logic remains: spf/dkim/dmarc checks, mismatch detection,
- * attachments scanning, domain classification, etc.
- ***********************************************/
+﻿/* MessageRead.js – v36
+   Changes in v36:
+   • Arrows inverted in HTML/CSS (see .chevron transforms there).
+   • Added "kaseya.net" to verifiedDomains set.
+*/
 
 (function () {
     "use strict";
 
     /* ---------- 1. CONSTANTS ---------- */
     const THEME_KEY = "bkEmailAddinTheme";
-
-    // A small set of known verified full emails:
     const verifiedSenders = [
         "support@microsoft.com",
         "support@amazon.com",
@@ -25,7 +16,6 @@
     ];
 
     // A large set of reputable-company domains for domain-based verification:
-    // Exactly the same as v36 + 'kaseya.net'. Nothing removed.
     const verifiedDomains = new Set([
         // 1. E-commerce Market Leaders (20)
         "amazon.com", "ebay.com", "alibaba.com", "aliexpress.com", "jd.com", "walmart.com", "target.com", "rakuten.com", "mercadolibre.com", "flipkart.com", "overstock.com", "etsy.com", "groupon.com", "wayfair.com", "zappos.com", "shein.com", "gearbest.com", "banggood.com", "tmall.com", "shopify.com",
@@ -39,7 +29,7 @@
         // 4. Technology & Software (20)
         "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com", "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com", "gitlab.com", "atlassian.com",
 
-        // Extra domain inserted previously:
+        /* Inserted here: "kaseya.net" */
         "kaseya.net",
 
         // 5. Electronics & Hardware (20)
@@ -106,7 +96,6 @@
         "zillow.com", "realtor.com", "redfin.com", "trulia.com", "homes.com", "remax.com", "century21.com", "coldwellbanker.com", "kw.com", "sothebysrealty.com", "compass.com", "corcoran.com", "zillowgroup.com", "loopnet.com", "officespace.com", "costar.com", "cushmanwakefield.com", "jll.com", "savills.com", "colliers.com"
     ]);
 
-    // Personal email domains
     const personalDomains = new Set([
         "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "msn.com",
         "hotmail.co.uk", "live.ca", "yahoo.com", "yahoo.co.uk", "yahoo.co.in", "ymail.com",
@@ -119,26 +108,20 @@
         "runbox.com", "posteo.net", "neomailbox.com", "countermail.com", "startmail.com", "lavabit.com"
     ]);
 
-    // Helper function to build inline badges with emoji & text
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // Our version label
-    window._identifyEmailVersion = "v37";
+    window._identifyEmailVersion = "v36";
 
     /* ---------- 2. OFFICE READY ---------- */
     Office.onReady(() => {
         $(document).ready(() => {
-            // Hide the top banner by default
             const banner = new components.MessageBanner(document.querySelector(".MessageBanner"));
             banner.hideBanner();
-
             initTheme();
             wireThemeToggle();
             wireCollapsibles();
             loadProps();
-
-            // re-load props if user changes to a new message
             Office.context.mailbox.addHandlerAsync(Office.EventType.ItemChanged, loadProps);
         });
     });
@@ -162,13 +145,11 @@
 
     /* ---------- 4. COLLAPSIBLES ---------- */
     function wireCollapsibles() {
-        // Toggle .collapsed on click
         $(document).on("click", ".card.collapsible > .section-title", function () {
             $(this).closest(".card").toggleClass("collapsed");
         });
-
-        // If desired, auto-expand “links” card when user clicks a link badge:
-        // $(document).on("click", "#linksBadgeContainer .inline-badge", () => $("#links-card").removeClass("collapsed"));
+        // clicking any flag badge expands Attachments card
+        $(document).on("click", "#attachBadgeContainer .inline-badge", () => $("#threats-card").removeClass("collapsed"));
     }
 
     /* ---------- 5. MAIN LOAD ---------- */
@@ -176,7 +157,7 @@
         const it = Office.context.mailbox.item;
         if (!it) return;
 
-        // item meta
+        // meta
         $("#dateTimeCreated").text(it.dateTimeCreated.toLocaleString());
         $("#dateTimeModified").text(it.dateTimeModified.toLocaleString());
         $("#itemClass").text(it.itemClass);
@@ -186,12 +167,11 @@
         // attachments
         renderAttachments(it);
 
-        // links
-        $("#links").text("Scanning…");
+        // URLs
+        $("#urls").text("Scanning…");
         scanBodyUrls(it, urls => {
-            $("#links").html(urls.length ? urls.map(shortUrlSpan).join("<br/>") : "None");
+            $("#urls").html(urls.length ? urls.map(shortUrlSpan).join("<br/>") : "None");
 
-            // Count how many match sender's domain, your domain, or are external
             const senderBase = baseDom(dom((it.sender?.emailAddress || it.from.emailAddress || "").toLowerCase()));
             const userBase = baseDom(dom(Office.context.mailbox.userProfile.emailAddress || ""));
             const allDomains = urls.map(u => {
@@ -207,26 +187,21 @@
             const userCount = allDomains.filter(d => d === userBase).length;
             const externalCount = urls.length - senderCount;
 
-            // place link-based badges into #linksBadgeContainer
-            const $lnk = $("#linksBadgeContainer").empty();
+            const $sec = $("#securityBadgeContainer").empty();
 
+            // add badges only when count > 0
             if (externalCount) {
-                $lnk.prepend(
-                    BADGE(`${externalCount} external URL${externalCount !== 1 ? "s" : ""}`, "URLs not matching sender’s domain")
-                );
+                $sec.prepend(BADGE(`${externalCount} external URL${externalCount !== 1 ? "s" : ""}`, `URLs not matching sender’s domain`));
             }
             if (userCount) {
-                $lnk.prepend(
-                    BADGE(`${userCount} match Your Domain`, `Your domain (${userBase}) appears ${userCount} time(s)`)
-                );
+                $sec.prepend(BADGE(`${userCount} match Your Domain`, `Your domain (${userBase}) appears ${userCount} time(s)`));
             }
             if (senderCount) {
-                $lnk.prepend(
-                    BADGE(`${senderCount} match Sender Domain`, `Sender’s domain (${senderBase}) appears ${senderCount} time(s)`)
-                );
+                $sec.prepend(BADGE(`${senderCount} match Sender Domain`, `Sender’s domain (${senderBase}) appears ${senderCount} time(s)`));
             }
             if (urls.length) {
-                $lnk.prepend(
+                // totals only if at least 1 URL
+                $sec.prepend(
                     BADGE(
                         `${urls.length} URL${urls.length !== 1 ? "s" : ""} | ${uniqueDomains.size} DOMAIN${uniqueDomains.size !== 1 ? "s" : ""}`,
                         "Total URLs and unique domains"
@@ -234,15 +209,15 @@
                 );
             }
 
-            // collapse links card if no badges
-            if (!$lnk.children().length) {
-                $("#links-card").addClass("collapsed");
+            // collapse Security Flags card if empty
+            if (!$sec.children().length) {
+                $("#security-card").addClass("collapsed");
             } else {
-                $("#links-card").removeClass("collapsed");
+                $("#security-card").removeClass("collapsed");
             }
         });
 
-        // addresses
+        // addresses (with truncation helper)
         $("#from").html(formatAddr(it.from));
         $("#sender").html(formatAddr(it.sender));
         $("#to").html(formatAddrs(it.to));
@@ -253,7 +228,6 @@
         $("#internetMessageId").html(truncateText(it.internetMessageId));
         $("#normalizedSubject").text(it.normalizedSubject);
 
-        // classification, authenticity, mismatch
         senderClassification(it);
         checkAuthHeaders(it);
         fromSenderMismatch(it);
@@ -277,20 +251,10 @@
         }
     }
     function fill(l) {
-        // You can wrap each file in <span class="file-label"> if you want bubble style
-        // For now, just insert <br/> between them:
-        $("#attachments").html(
-            l.length ? l.map(a => truncateText(a.name, true)).join("<br/>") : "None"
-        );
-
-        const $ac = $("#attachmentBadgeContainer").empty();
+        $("#attachments").html(l.length ? l.map(a => truncateText(a.name, true)).join("<br/>") : "None");
+        const $ac = $("#attachBadgeContainer").empty();
         if (l.length) {
-            $ac.append(
-                BADGE(`${l.length} ATTACHMENT${l.length !== 1 ? "s" : ""}`, "Review attachments before opening")
-            );
-            $("#attachments-card").removeClass("collapsed");
-        } else {
-            $("#attachments-card").addClass("collapsed");
+            $ac.append(BADGE(`${l.length} ATTACHMENT${l.length !== 1 ? "s" : ""}`, "Review attachments before opening"));
         }
     }
 
@@ -302,7 +266,6 @@
                 return;
             }
             const m = r.value.match(/https?:\/\/[^\s"'<>]+/gi) || [];
-            // remove duplicates, limit to 200
             cb([...new Set(m)].slice(0, 200));
         });
     }
@@ -320,9 +283,7 @@
         }
     }
     function escapeHtml(s) {
-        return s.replace(/[&<>"']/g, c =>
-            ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
-        );
+        return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
     }
 
     /* ---------- 8. SENDER TYPE / VERIFIED ------------- */
@@ -330,7 +291,7 @@
         const email = (it.from?.emailAddress || "").toLowerCase();
         const base = baseDom(dom(email));
 
-        // either entire email in verifiedSenders OR domain in verifiedDomains
+        // Enhanced check: entire email in 'verifiedSenders' OR domain in 'verifiedDomains'.
         const isVerified = verifiedSenders.includes(email) || verifiedDomains.has(base);
 
         const vCls = isVerified ? "badge-verified" : "badge-unverified";
@@ -365,8 +326,8 @@
                     }
                 }
                 if (low.startsWith("return-path:")) {
-                    const m2 = l.match(/<([^>]+)>/);
-                    if (m2) envDom = baseDom(dom(m2[1]));
+                    const m = l.match(/<([^>]+)>/);
+                    if (m) envDom = baseDom(dom(m[1]));
                 }
                 if (low.startsWith("dkim-signature:") && !dkimDom) {
                     const mm = l.match(/\bd=([^;]+)/i);
@@ -378,6 +339,7 @@
                 <div class='auth-summary ${spf === "pass" && dkim === "pass" && dmarc === "pass" ? "auth-pass" : "auth-fail"}'>
                     SPF=${spf || "N/A"} | DKIM=${dkim || "N/A"} | DMARC=${dmarc || "N/A"}
                 </div>`;
+
             $("#authContainer").html(summary);
 
             const fromBase = baseDom(dom(it.from.emailAddress));
@@ -422,7 +384,7 @@
     }
     function baseDom(d) {
         if (!d) return "";
-        // remove common subdomain patterns like 'www.', 'm.', 'l.'
+        // remove leading subdomains like www, m, l, etc.
         d = d.replace(/^(?:www\d*|m\d*|l\d*)\./i, "");
         const p = d.split(".");
         return p.length <= 2 ? d : p.slice(-2).join(".");
@@ -438,15 +400,9 @@
         return `<span class="truncate" title="${escapeHtml(txt)}">${ell}</span>`;
     }
     function formatAddr(a) {
-        if (!a) return "";
         return `${a.displayName} &lt;${a.emailAddress}&gt;`;
     }
     function formatAddrs(arr) {
         return arr?.length ? arr.map(formatAddr).join("<br/>") : "None";
-    }
-    function escapeHtml(s) {
-        return s.replace(/[&<>"']/g, c =>
-            ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
-        );
     }
 })();
