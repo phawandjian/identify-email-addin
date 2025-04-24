@@ -1,7 +1,8 @@
-﻿/* MessageRead.js – v35
-   • Added 'verifiedDomains' with the complete list of top reputable companies.
-   • Now checks either an exact email in 'verifiedSenders' OR the domain in 'verifiedDomains'.
-   • Confirmed icloud.com is already in 'personalDomains' set. */
+﻿/* MessageRead.js – v36
+   Changes in v36:
+   • Arrows inverted in HTML/CSS (see .chevron transforms there).
+   • Added "kaseya.net" to verifiedDomains set.
+*/
 
 (function () {
     "use strict";
@@ -27,6 +28,9 @@
 
         // 4. Technology & Software (20)
         "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com", "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com", "gitlab.com", "atlassian.com",
+
+        /* Inserted here: "kaseya.net" */
+        "kaseya.net",
 
         // 5. Electronics & Hardware (20)
         "samsung.com", "lg.com", "sony.com", "panasonic.com", "philips.com", "sharpusa.com", "huawei.com", "xiaomi.com", "oneplus.com", "realme.com", "oppo.com", "vivo.com", "toshiba.com", "pioneer.com", "jvc.com", "canon.com", "nikon.com", "epson.com", "fujifilm.com", "bose.com",
@@ -107,11 +111,11 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v35";
+    window._identifyEmailVersion = "v36";
 
     /* ---------- 2. OFFICE READY ---------- */
     Office.onReady(() => {
-        $(() => {
+        $(document).ready(() => {
             const banner = new components.MessageBanner(document.querySelector(".MessageBanner"));
             banner.hideBanner();
             initTheme();
@@ -135,7 +139,9 @@
             localStorage.setItem(THEME_KEY, m);
         });
     }
-    const setTheme = m => $("body").toggleClass("dark-mode", m === "dark");
+    function setTheme(m) {
+        $("body").toggleClass("dark-mode", m === "dark");
+    }
 
     /* ---------- 4. COLLAPSIBLES ---------- */
     function wireCollapsibles() {
@@ -185,7 +191,7 @@
 
             // add badges only when count > 0
             if (externalCount) {
-                $sec.prepend(BADGE(`${externalCount} external URL${externalCount !== 1 ? "S" : ""}`, "URLs not matching sender’s domain"));
+                $sec.prepend(BADGE(`${externalCount} external URL${externalCount !== 1 ? "s" : ""}`, `URLs not matching sender’s domain`));
             }
             if (userCount) {
                 $sec.prepend(BADGE(`${userCount} match Your Domain`, `Your domain (${userBase}) appears ${userCount} time(s)`));
@@ -195,8 +201,12 @@
             }
             if (urls.length) {
                 // totals only if at least 1 URL
-                $sec.prepend(BADGE(`${urls.length} URL${urls.length !== 1 ? "S" : ""} | ${uniqueDomains.size} DOMAIN${uniqueDomains.size !== 1 ? "S" : ""}`,
-                    "Total URLs and unique domains"));
+                $sec.prepend(
+                    BADGE(
+                        `${urls.length} URL${urls.length !== 1 ? "s" : ""} | ${uniqueDomains.size} DOMAIN${uniqueDomains.size !== 1 ? "s" : ""}`,
+                        "Total URLs and unique domains"
+                    )
+                );
             }
 
             // collapse Security Flags card if empty
@@ -244,7 +254,7 @@
         $("#attachments").html(l.length ? l.map(a => truncateText(a.name, true)).join("<br/>") : "None");
         const $ac = $("#attachBadgeContainer").empty();
         if (l.length) {
-            $ac.append(BADGE(`${l.length} ATTACHMENT${l.length !== 1 ? "S" : ""}`, "Review attachments before opening"));
+            $ac.append(BADGE(`${l.length} ATTACHMENT${l.length !== 1 ? "s" : ""}`, "Review attachments before opening"));
         }
     }
 
@@ -259,27 +269,29 @@
             cb([...new Set(m)].slice(0, 200));
         });
     }
-    const shortUrlSpan = u => {
+    function shortUrlSpan(u) {
         const s = truncateUrl(u, 30);
         return `<span class="short-url" title="${escapeHtml(u)}">${escapeHtml(s)}</span>`;
-    };
+    }
     function truncateUrl(u, max) {
         try {
             const { protocol, hostname, pathname } = new URL(u);
-            const p = pathname.length > max ? pathname.slice(0, max) + "…" : pathname;
-            return `${protocol}//${hostname}${p}`;
+            const shortPath = pathname.length > max ? pathname.slice(0, max) + "…" : pathname;
+            return `${protocol}//${hostname}${shortPath}`;
         } catch {
             return u.length > 60 ? u.slice(0, 57) + "…" : u;
         }
     }
-    const escapeHtml = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    function escapeHtml(s) {
+        return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+    }
 
     /* ---------- 8. SENDER TYPE / VERIFIED ------------- */
     function senderClassification(it) {
         const email = (it.from?.emailAddress || "").toLowerCase();
         const base = baseDom(dom(email));
 
-        // Enhanced check: either the entire email is in 'verifiedSenders' or the domain is in 'verifiedDomains'.
+        // Enhanced check: entire email in 'verifiedSenders' OR domain in 'verifiedDomains'.
         const isVerified = verifiedSenders.includes(email) || verifiedDomains.has(base);
 
         const vCls = isVerified ? "badge-verified" : "badge-unverified";
@@ -298,7 +310,8 @@
         if (!it.getAllInternetHeadersAsync) return;
         it.getAllInternetHeadersAsync(r => {
             if (r.status !== "succeeded") return;
-            const hdr = r.value || "", lines = hdr.split(/\r?\n/);
+            const hdr = r.value || "";
+            const lines = hdr.split(/\r?\n/);
 
             let spf, dkim, dmarc, envDom = null, dkimDom = null;
             lines.forEach(l => {
@@ -317,29 +330,30 @@
                     if (m) envDom = baseDom(dom(m[1]));
                 }
                 if (low.startsWith("dkim-signature:") && !dkimDom) {
-                    const m = l.match(/\bd=([^;]+)/i);
-                    if (m) dkimDom = baseDom(m[1].trim().toLowerCase());
+                    const mm = l.match(/\bd=([^;]+)/i);
+                    if (mm) dkimDom = baseDom(mm[1].trim().toLowerCase());
                 }
             });
 
-            const summary =
-                `<div class='auth-summary ${spf === "pass" && dkim === "pass" && dmarc === "pass" ? "auth-pass" : "auth-fail"}'>
-                 SPF=${spf || "N/A"} | DKIM=${dkim || "N/A"} | DMARC=${dmarc || "N/A"}
+            const summary = `
+                <div class='auth-summary ${spf === "pass" && dkim === "pass" && dmarc === "pass" ? "auth-pass" : "auth-fail"}'>
+                    SPF=${spf || "N/A"} | DKIM=${dkim || "N/A"} | DMARC=${dmarc || "N/A"}
                 </div>`;
+
             $("#authContainer").html(summary);
 
             const fromBase = baseDom(dom(it.from.emailAddress));
             const dispBase = baseDom(dispDomFrom(it.from.displayName));
             const mis = [];
-            if (envDom && envDom !== fromBase) mis.push(`Mail‑from ${envDom}`);
-            if (dkimDom && dkimDom !== fromBase) mis.push(`DKIM d=${dkimDom}`);
-            if (dispBase && dispBase !== fromBase) mis.push(`Display "${dispBase}"`);
+            if (envDom && envDom !== fromBase) mis.push(`Mail‑from ${envDom}`);
+            if (dkimDom && dkimDom !== fromBase) mis.push(`DKIM d=${dkimDom}`);
+            if (dispBase && dispBase !== fromBase) mis.push(`Display "${dispBase}"`);
+
             if (mis.length) {
                 $("#authContainer").prepend(
                     BADGE("DOMAIN SENDER MISMATCH", `From: ${fromBase}\nMismatched E-mail Address: ${mis.join(", ")}`)
                 );
             }
-
             if (mis.length || (spf && spf !== "pass") || (dkim && dkim !== "pass") || (dmarc && dmarc !== "pass")) {
                 $("#auth-card").removeClass("collapsed");
             }
@@ -358,16 +372,26 @@
     }
 
     /* ---------- 11. UTIL + TRUNCATE TEXT -------------- */
-    const val = (s, t) => s.includes(t) ? (s.split(t)[1].trim().match(/^(\w+)/) || [])[1] : null;
-    const dom = a => a?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})$/)?.[1]?.toLowerCase() || null;
-    const baseDom = d => {
+    function val(s, t) {
+        if (!s.includes(t)) return null;
+        const parts = s.split(t);
+        if (parts.length < 2) return null;
+        const match = parts[1].trim().match(/^(\w+)/);
+        return match ? match[1] : null;
+    }
+    function dom(a) {
+        return a?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})$/)?.[1]?.toLowerCase() || null;
+    }
+    function baseDom(d) {
         if (!d) return "";
         // remove leading subdomains like www, m, l, etc.
         d = d.replace(/^(?:www\d*|m\d*|l\d*)\./i, "");
         const p = d.split(".");
         return p.length <= 2 ? d : p.slice(-2).join(".");
-    };
-    const dispDomFrom = n => n?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/)?.[1]?.toLowerCase() || null;
+    }
+    function dispDomFrom(n) {
+        return n?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/)?.[1]?.toLowerCase() || null;
+    }
 
     function truncateText(txt, isFile = false, max = 48) {
         if (!txt) return "";
@@ -375,6 +399,10 @@
         const ell = escapeHtml(txt.slice(0, max - 1) + "…");
         return `<span class="truncate" title="${escapeHtml(txt)}">${ell}</span>`;
     }
-    const formatAddr = a => `${a.displayName} &lt;${a.emailAddress}&gt;`;
-    const formatAddrs = arr => arr?.length ? arr.map(formatAddr).join("<br/>") : "None";
+    function formatAddr(a) {
+        return `${a.displayName} &lt;${a.emailAddress}&gt;`;
+    }
+    function formatAddrs(arr) {
+        return arr?.length ? arr.map(formatAddr).join("<br/>") : "None";
+    }
 })();

@@ -5,10 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
     <title>Detected Results</title>
 
-    <!-- jQuery: reference from GitHub or CDN.
-         If you don't actually store jquery-3.6.0.js in your repo, use the official CDN.
-         Example: https://code.jquery.com/jquery-3.6.0.min.js
-    -->
+    <!-- jQuery: reference from GitHub or CDN -->
     <script src="https://phawandjian.github.io/identify-email-addin/Scripts/jquery-3.6.0.js"></script>
 
     <!-- Office.js from the official Office CDN -->
@@ -19,29 +16,34 @@
 
     <!-- our CSS/JS assets hosted on GitHub Pages -->
     <link href="https://phawandjian.github.io/identify-email-addin/MessageRead.css?v=13" rel="stylesheet" />
-    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=35"></script>
+    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=36"></script>
 
     <!-- Fabric core from Microsoft -->
     <link rel="stylesheet"
           href="https://res-1.cdn.office.net/files/fabric-cdn-prod_20230815.002/office-ui-fabric-core/11.1.0/css/fabric.min.css">
 
-    <!-- collapsible helpers -->
+    <!-- collapsible helpers: updated arrow rotation -->
     <style>
         .collapsible .section-title {
-            cursor: pointer
+            cursor: pointer;
         }
 
         .collapsible .chevron {
-            transition: transform .2s;
-            flex-shrink: 0
+            transition: transform 0.2s;
+            flex-shrink: 0;
         }
 
+        /* Show arrow pointing right (0deg) when collapsed, down (90deg) when expanded */
         .collapsed .chevron {
-            transform: rotate(-90deg)
+            transform: rotate(0deg);
+        }
+
+        .collapsible:not(.collapsed) .chevron {
+            transform: rotate(90deg);
         }
 
         .collapsed .card-body {
-            display: none
+            display: none;
         }
     </style>
 </head>
@@ -59,7 +61,7 @@
     <div class="card" id="class-card">
         <div class="section-title">
             <svg viewBox="0 0 16 16"><path d="M1 8h14M8 1v14" /></svg>
-            <span>Sender Type</span>
+            <span>Sender&nbsp;Type</span>
         </div>
         <span id="classBadgeContainer"></span>
     </div>
@@ -68,7 +70,7 @@
     <div class="card" id="security-card">
         <div class="section-title">
             <svg viewBox="0 0 16 16"><path d="M8 1l6 2-2 11H4L2 3z" /></svg>
-            <span>Security Flags</span>
+            <span>Security&nbsp;Flags</span>
         </div>
         <span id="securityBadgeContainer" class="badge-cell"></span>
     </div>
@@ -78,7 +80,7 @@
         <div class="section-title">
             <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
             <svg viewBox="0 0 16 16"><path d="M8 1l6 2v4c0 3.5-2.5 6.9-6 8-3.5-1.1-6-4.5-6-8V3l6-2zm3.35 4.15l-4.24 4.24-1.76-1.77-.7.71 2.46 2.46 4.95-4.95-.71-.69z" /></svg>
-            <span>Verified Sender</span>
+            <span>Verified&nbsp;Sender</span>
         </div>
         <div class="card-body">
             <span id="verifiedBadgeContainer"></span>
@@ -90,7 +92,7 @@
         <div class="section-title">
             <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
             <svg viewBox="0 0 16 16"><path d="M1 8h14M8 1v14" /></svg>
-            <span>Attachments &amp; Links</span>
+            <span>Attachments&nbsp;&amp;&nbsp;Links</span>
             <span id="attachBadgeContainer" class="badge-cell"></span>
         </div>
         <div class="card-body">
@@ -112,7 +114,7 @@
         <div class="section-title">
             <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
             <svg viewBox="0 0 16 16"><path d="M8 .8l7.2 3-1 9.2L8 15.2.8 13l-1-9.2z" /></svg>
-            <span>Authentication Results</span>
+            <span>Authentication&nbsp;Results</span>
         </div>
         <div class="card-body">
             <span id="authContainer"></span>
@@ -123,7 +125,7 @@
     <div class="card collapsible collapsed" id="detailed-props-card">
         <div class="section-title">
             <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
-            <span>Detailed Message Properties</span>
+            <span>Detailed&nbsp;Message&nbsp;Properties</span>
         </div>
         <div class="card-body">
             <div class="ms-Grid">
@@ -143,7 +145,7 @@
     <div class="card collapsible collapsed" id="item-props-card">
         <div class="section-title">
             <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
-            <span>Item properties</span>
+            <span>Item&nbsp;properties</span>
         </div>
         <div class="card-body">
             <div class="ms-Grid">
