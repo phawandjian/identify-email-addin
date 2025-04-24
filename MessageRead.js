@@ -1,22 +1,23 @@
-﻿/* MessageRead.js – v39
+﻿/* MessageRead.js – v40
    Changes in v36:
    • Arrows inverted in HTML/CSS (see .chevron transforms there).
    • Added "kaseya.net" to verifiedDomains set.
 
    Changes in v37:
    • Attachments separated into their own collapsible card (#attachments-card).
-   • The click-handler for #attachBadgeContainer now expands #attachments-card instead of #threats-card.
+   • The click-handler for #attachBadgeContainer now expands #threats-card.
 
    Changes in v38 (internal domain trust):
-   • Added logic to trust internal (business) senders if envelope domain and From domain both match the user's
-     own business domain, and if SPF/DKIM/DMARC are "pass" (non-personal domain).
-   • Introduced window.__userDomain and window.__internalSenderTrusted to coordinate this logic in checkAuthHeaders
-     and senderClassification without removing or breaking existing code.
+   • Logic to trust internal (business) senders if envelope domain & From domain both match the user's business domain.
+   • Introduced __userDomain & __internalSenderTrusted variables.
 
    Changes in v39 (fix internal trust display):
-   • The classification was happening before checkAuthHeaders finished. Now, after we set
-     window.__internalSenderTrusted in the async headers callback, we re-run senderClassification(it)
-     (and fromSenderMismatch(it) again) to immediately reflect the updated "Verified Sender" badge.
+   • After async checkAuthHeaders sets __internalSenderTrusted, re-run senderClassification(it).
+
+   Changes in v40 (direct-domain compare for internal emails):
+   • Replaced the base-domain check for “internal trust” with a new 'domainsMatchForInternal' function,
+     which compares the *full domain* for the user’s mailbox vs. From/Envelope. 
+     This helps if you have subdomains or onmicrosoft.com addresses.
 */
 
 (function () {
@@ -128,10 +129,9 @@
 
     window._identifyEmailVersion = "v37";
 
-    // BEGIN v38 addition: track user's domain and internal trust
+    // track user's domain and internal trust
     window.__userDomain = "";
     window.__internalSenderTrusted = false;
-    // END v38 addition
 
     /* ---------- 2. OFFICE READY ---------- */
     Office.onReady(() => {
@@ -177,8 +177,8 @@
         const it = Office.context.mailbox.item;
         if (!it) return;
 
-        // v38 addition: track user domain globally
-        window.__userDomain = baseDom(dom(Office.context.mailbox.userProfile.emailAddress));
+        // track user domain globally
+        window.__userDomain = fullDomain(Office.context.mailbox.userProfile.emailAddress);
         window.__internalSenderTrusted = false;
 
         // meta
@@ -252,7 +252,7 @@
         $("#internetMessageId").html(truncateText(it.internetMessageId));
         $("#normalizedSubject").text(it.normalizedSubject);
 
-        // Original order unchanged:
+        // Original order
         senderClassification(it);
         checkAuthHeaders(it);
         fromSenderMismatch(it);
@@ -316,8 +316,7 @@
         const email = (it.from?.emailAddress || "").toLowerCase();
         const base = baseDom(dom(email));
 
-        // Enhanced check: entire email in 'verifiedSenders' OR domain in 'verifiedDomains'.
-        // v38 addition: also consider internalSenderTrusted
+        // Enhanced check: entire email in 'verifiedSenders' OR domain in 'verifiedDomains' OR internalSenderTrusted
         const isVerified = verifiedSenders.includes(email) || verifiedDomains.has(base) || window.__internalSenderTrusted;
 
         const vCls = isVerified ? "badge-verified" : "badge-unverified";
@@ -348,12 +347,12 @@
                     dmarc ??= val(low, "dmarc=");
                     if (low.includes("smtp.mailfrom=")) {
                         const m = low.match(/smtp\.mailfrom=([^;\s]+)/);
-                        if (m) envDom = baseDom(dom(m[1]));
+                        if (m) envDom = fullDomain(m[1]);
                     }
                 }
                 if (low.startsWith("return-path:")) {
                     const m = l.match(/<([^>]+)>/);
-                    if (m) envDom = baseDom(dom(m[1]));
+                    if (m) envDom = fullDomain(m[1]);
                 }
                 if (low.startsWith("dkim-signature:") && !dkimDom) {
                     const mm = l.match(/\bd=([^;]+)/i);
@@ -368,12 +367,21 @@
 
             $("#authContainer").html(summary);
 
-            const fromBase = baseDom(dom(it.from.emailAddress));
+            const fromBase = fullDomain(it.from.emailAddress);
             const dispBase = baseDom(dispDomFrom(it.from.displayName));
+
             const mis = [];
-            if (envDom && envDom !== fromBase) mis.push(`Mail‑from ${envDom}`);
-            if (dkimDom && dkimDom !== fromBase) mis.push(`DKIM d=${dkimDom}`);
-            if (dispBase && dispBase !== fromBase) mis.push(`Display "${dispBase}"`);
+            // if envelope domain != from domain, note it
+            if (envDom && envDom.toLowerCase() !== fromBase.toLowerCase()) {
+                mis.push(`Mail‑from ${envDom}`);
+            }
+            // if DKIM domain != from base, note it
+            if (dkimDom && dkimDom !== baseDom(dom(it.from.emailAddress))) {
+                mis.push(`DKIM d=${dkimDom}`);
+            }
+            if (dispBase && dispBase !== baseDom(dom(it.from.emailAddress))) {
+                mis.push(`Display "${dispBase}"`);
+            }
 
             if (mis.length) {
                 $("#authContainer").prepend(
@@ -384,14 +392,13 @@
                 $("#auth-card").removeClass("collapsed");
             }
 
-            // v38 addition: Safest internal trust logic:
-            // If fromBase and envDom both match userDomain, that domain is not personal, and SPF/DKIM/DMARC are all pass,
-            // then we trust this as an internal business sender.
+            // direct-domain approach for internal trust
+            // Must match user's domain, must not be personal, must pass SPF/DKIM/DMARC
             if (
                 window.__userDomain &&
-                fromBase === window.__userDomain &&
-                envDom === window.__userDomain &&
-                !personalDomains.has(window.__userDomain) &&
+                domainsMatchForInternal(fromBase, window.__userDomain) &&
+                domainsMatchForInternal(envDom, window.__userDomain) &&
+                !personalDomains.has(window.__userDomain.toLowerCase()) &&
                 spf === "pass" &&
                 dkim === "pass" &&
                 dmarc === "pass"
@@ -399,8 +406,7 @@
                 window.__internalSenderTrusted = true;
             }
 
-            // v39 fix: after the async check finishes, re-run classification & mismatch
-            // to ensure the UI is updated if we just set __internalSenderTrusted=true
+            // re-run classification & mismatch so the UI updates
             senderClassification(it);
             fromSenderMismatch(it);
         });
@@ -425,6 +431,15 @@
         const match = parts[1].trim().match(/^(\w+)/);
         return match ? match[1] : null;
     }
+
+    // Returns the entire domain of an email address (e.g. "bob@sub.myorg.com" => "sub.myorg.com")
+    function fullDomain(email) {
+        if (!email) return "";
+        const m = email.toLowerCase().match(/@([a-z0-9.\-]+)/);
+        return m ? m[1] : "";
+    }
+
+    // baseDom for third-party verification logic (unchanged)
     function dom(a) {
         return a?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})$/)?.[1]?.toLowerCase() || null;
     }
@@ -435,8 +450,16 @@
         const p = d.split(".");
         return p.length <= 2 ? d : p.slice(-2).join(".");
     }
+
+    // for displayName-based domain checks
     function dispDomFrom(n) {
         return n?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/)?.[1]?.toLowerCase() || null;
+    }
+
+    // new helper for direct domain comparison for internal trust
+    function domainsMatchForInternal(d1, d2) {
+        if (!d1 || !d2) return false;
+        return d1.trim().toLowerCase() === d2.trim().toLowerCase();
     }
 
     function truncateText(txt, isFile = false, max = 48) {
