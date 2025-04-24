@@ -1,16 +1,23 @@
-﻿/* MessageRead.js – v37
-   Changes:
-     • Reordered cards in HTML (Verified > Type > Security > Attachments > Links > Auth > Detailed Props > Item Props)
-     • Separated “attachments” and “links” into their own collapsible cards
-     • Moved link-based badges out of “security-card” into “links-card”
-     • No red border in .inline-badge
-*/
+﻿/***********************************************
+ * MessageRead.js – v37
+ * 
+ * Changes from v36:
+ *   • Reordered cards in HTML (Verified > Type > Security > Attachments > Links > Auth > Detailed Props > Item Props).
+ *   • Split “Attachments” & “Links” into separate collapsible cards instead of one “threats” card.
+ *   • Link-based badges now go in #linksBadgeContainer (instead of #securityBadgeContainer).
+ *   • No red border for inline-badge (CSS side).
+ * 
+ * But all security logic remains: spf/dkim/dmarc checks, mismatch detection,
+ * attachments scanning, domain classification, etc.
+ ***********************************************/
 
 (function () {
     "use strict";
 
     /* ---------- 1. CONSTANTS ---------- */
     const THEME_KEY = "bkEmailAddinTheme";
+
+    // A small set of known verified full emails:
     const verifiedSenders = [
         "support@microsoft.com",
         "support@amazon.com",
@@ -18,36 +25,120 @@
     ];
 
     // A large set of reputable-company domains for domain-based verification:
+    // Exactly the same as v36 + 'kaseya.net'. Nothing removed.
     const verifiedDomains = new Set([
-        // omitted for brevity, same as before:
-        // ...
-        "microsoft.com",
-        "kaseya.net", // Already added in prior version
-        // ...
+        // 1. E-commerce Market Leaders (20)
+        "amazon.com", "ebay.com", "alibaba.com", "aliexpress.com", "jd.com", "walmart.com", "target.com", "rakuten.com", "mercadolibre.com", "flipkart.com", "overstock.com", "etsy.com", "groupon.com", "wayfair.com", "zappos.com", "shein.com", "gearbest.com", "banggood.com", "tmall.com", "shopify.com",
+
+        // 2. Large Retailers & Department Stores (20)
+        "costco.com", "kohls.com", "bestbuy.com", "macys.com", "nordstrom.com", "bloomingdales.com", "dillards.com", "jcpenney.com", "sears.com", "neimanmarcus.com", "saksfifthavenue.com", "meijer.com", "biglots.com", "rossstores.com", "tjmaxx.com", "marshalls.com", "burlington.com", "dollargeneral.com", "familydollar.com", "bedbathandbeyond.com",
+
+        // 3. Fashion & Apparel (20)
+        "gap.com", "oldnavy.com", "bananarepublic.com", "uniqlo.com", "hm.com", "zara.com", "forever21.com", "asos.com", "revolve.com", "urbanoutfitters.com", "freepeople.com", "anthropologie.com", "abercrombie.com", "hollisterco.com", "fashionnova.com", "victoriassecret.com", "adidas.com", "nike.com", "underarmour.com", "lululemon.com",
+
+        // 4. Technology & Software (20)
+        "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com", "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com", "gitlab.com", "atlassian.com",
+
+        // Extra domain inserted previously:
+        "kaseya.net",
+
+        // 5. Electronics & Hardware (20)
+        "samsung.com", "lg.com", "sony.com", "panasonic.com", "philips.com", "sharpusa.com", "huawei.com", "xiaomi.com", "oneplus.com", "realme.com", "oppo.com", "vivo.com", "toshiba.com", "pioneer.com", "jvc.com", "canon.com", "nikon.com", "epson.com", "fujifilm.com", "bose.com",
+
+        // 6. Payment & Financial Services (20)
+        "paypal.com", "stripe.com", "squareup.com", "venmo.com", "skrill.com", "payoneer.com", "wepay.com", "adyen.com", "authorize.net", "alipay.com", "neteller.com", "googlepay.com", "amazonpay.com", "worldpay.com", "firstdata.com", "payu.com", "bill.com", "intuit.com", "xero.com", "coinbase.com",
+
+        // 7. Banks & Lending (20)
+        "chase.com", "wellsfargo.com", "bankofamerica.com", "citi.com", "usbank.com", "pnc.com", "truist.com", "capitalone.com", "americanexpress.com", "discover.com", "goldmansachs.com", "barclays.com", "hsbc.com", "lloydsbank.com", "rbs.co.uk", "santander.com", "bbva.com", "bnymellon.com", "sofi.com", "ally.com",
+
+        // 8. Insurance (20)
+        "geico.com", "progressive.com", "allstate.com", "statefarm.com", "farmers.com", "usaa.com", "libertymutual.com", "nationwide.com", "travelers.com", "chubb.com", "zurichna.com", "thehartford.com", "metlife.com", "prudential.com", "aetna.com", "cigna.com", "humana.com", "aflac.com", "coloniallife.com", "globelife.com",
+
+        // 9. Healthcare & Pharma (20)
+        "pfizer.com", "moderna.com", "johnsonandjohnson.com", "merck.com", "astrazeneca.com", "novartis.com", "roche.com", "gsk.com", "sanofi.com", "abbvie.com", "bristolmyerssquibb.com", "lilly.com", "bayer.com", "amgen.com", "teva.com", "viatris.com", "regeneron.com", "cardinalhealth.com", "mckesson.com", "abbott.com",
+
+        // 10. Telecom & ISPs (20)
+        "att.com", "verizon.com", "t-mobile.com", "sprint.com", "xfinity.com", "comcast.com", "charter.com", "spectrum.com", "centurylink.com", "frontier.com", "bt.com", "vodafone.com", "orange.com", "telefonica.com", "rogers.com", "bell.ca", "telus.com", "telstra.com", "mtn.com", "uscellular.com",
+
+        // 11. Social Media & Networking (20)
+        "facebook.com", "instagram.com", "twitter.com", "linkedin.com", "snapchat.com", "pinterest.com", "tiktok.com", "reddit.com", "tumblr.com", "weibo.com", "wechat.com", "discord.com", "quora.com", "meetup.com", "xing.com", "vk.com", "flickr.com", "behance.net", "deviantart.com", "medium.com",
+
+        // 12. Internet & Tech Giants (20)
+        "baidu.com", "yandex.com", "cloudflare.com", "akamai.com", "digitalocean.com", "rackspace.com", "godaddy.com", "namecheap.com", "wordpress.com", "squarespace.com", "weebly.com", "wix.com", "bigcommerce.com", "mailchimp.com", "hubspot.com", "constantcontact.com", "webex.com", "cisco.com", "github.com", "tencent.com",
+
+        // 13. Travel Sites (20)
+        "booking.com", "expedia.com", "tripadvisor.com", "orbitz.com", "travelocity.com", "priceline.com", "kayak.com", "skyscanner.com", "trivago.com", "hotwire.com", "hopper.com", "agoda.com", "cheapoair.com", "ebookers.com", "cheapair.com", "airfarewatchdog.com", "lastminute.com", "travelzoo.com", "travelgenio.com", "momondo.com",
+
+        // 14. Airlines (20)
+        "delta.com", "united.com", "southwest.com", "american.com", "aa.com", "alaskaair.com", "jetblue.com", "spirit.com", "hawaiianairlines.com", "allegiantair.com", "britishairways.com", "lufthansa.com", "airfrance.com", "klm.com", "emirates.com", "qatarairways.com", "etihad.com", "cathaypacific.com", "singaporeair.com", "aerlingus.com",
+
+        // 15. Hotels & Accommodation (20)
+        "marriott.com", "hilton.com", "hyatt.com", "ihg.com", "choicehotels.com", "wyndhamhotels.com", "accor.com", "ritzcarlton.com", "fourseasons.com", "fairmont.com", "starwoodhotels.com", "mgmresorts.com", "wynnresorts.com", "hostels.com", "motel6.com", "bestwestern.com", "radissonhotels.com", "scandichotels.com", "oyorooms.com", "airbnb.com",
+
+        // 16. Car Rentals & Transportation (20)
+        "hertz.com", "avis.com", "budget.com", "enterprise.com", "alamo.com", "nationalcar.com", "thrifty.com", "dollar.com", "sixt.com", "uhaul.com", "pensketruckrental.com", "lyft.com", "uber.com", "grab.com", "bolt.eu", "cabify.com", "lime.me", "bird.co", "spin.app", "turo.com",
+
+        // 17. Food & Beverage (20)
+        "starbucks.com", "dunkindonuts.com", "mcdonalds.com", "burgerking.com", "wendys.com", "tacobell.com", "pizzahut.com", "dominos.com", "papajohns.com", "chipotle.com", "panerabread.com", "chick-fil-a.com", "kfc.com", "subway.com", "fiveguys.com", "sonicdrivein.com", "arbys.com", "dairyqueen.com", "littlecaesars.com", "jimmyjohns.com",
+
+        // 18. Logistics & Shipping (20)
+        "ups.com", "fedex.com", "dhl.com", "usps.com", "canadapost.ca", "royalmail.com", "parcelforce.com", "hermesworld.com", "dpd.com", "tnt.com", "aramex.com", "gls-group.eu", "yamato-hd.co.jp", "japanpost.jp", "laposte.fr", "upsupplychain.com", "fedexcustomcritical.com", "dhlglobalforwarding.com", "ontrac.com", "yrc.com",
+
+        // 19. Media & Entertainment (20)
+        "netflix.com", "hulu.com", "disneyplus.com", "hbo.com", "showtime.com", "paramountplus.com", "peacocktv.com", "discoveryplus.com", "espn.com", "fox.com", "abc.com", "nbc.com", "cbs.com", "bbc.co.uk", "cnn.com", "bloomberg.com", "reuters.com", "theguardian.com", "nytimes.com", "wsj.com",
+
+        // 20. Automotive (20)
+        "ford.com", "gm.com", "chevrolet.com", "toyota.com", "honda.com", "nissanusa.com", "hyundaiusa.com", "kia.com", "tesla.com", "bmw.com", "mercedes-benz.com", "audi.com", "volkswagen.com", "porsche.com", "volvo.com", "subaru.com", "mazdausa.com", "dodge.com", "jeep.com", "ramtrucks.com",
+
+        // 21. Education (20)
+        "harvard.edu", "mit.edu", "stanford.edu", "berkeley.edu", "ox.ac.uk", "cam.ac.uk", "yale.edu", "princeton.edu", "columbia.edu", "ucla.edu", "nyu.edu", "upenn.edu", "caltech.edu", "cmu.edu", "gatech.edu", "uf.edu", "umich.edu", "k12.com", "coursera.org", "edx.org",
+
+        // 22. Nonprofits & International Orgs (20)
+        "un.org", "who.int", "worldbank.org", "imf.org", "wto.org", "unesco.org", "unicef.org", "redcross.org", "salvationarmy.org", "unitedway.org", "habitat.org", "wwf.org", "greenpeace.org", "amnesty.org", "doctorswithoutborders.org", "care.org", "oxfam.org", "mercycorps.org", "charitywater.org", "worldvision.org",
+
+        // 23. Government & Public Services (20)
+        "usa.gov", "irs.gov", "ssa.gov", "nps.gov", "nasa.gov", "gov.uk", "canada.ca", "australia.gov.au", "india.gov.in", "gov.cn", "europa.eu", "whitehouse.gov", "senate.gov", "house.gov", "justice.gov", "ny.gov", "ca.gov", "gov.za", "scot.gov", "uscis.gov",
+
+        // 24. Manufacturing & Industrial (20)
+        "caterpillar.com", "johnsoncontrols.com", "3m.com", "honeywell.com", "siemens.com", "ge.com", "emerson.com", "schneider-electric.com", "rockwellautomation.com", "abb.com", "bosch.com", "hitachihightech.com", "daikin.com", "cummins.com", "whirlpoolcorp.com", "jcb.com", "doosan.com", "yamaha-motor.com", "unitedtechnologies.com", "raytheon.com",
+
+        // 25. Real Estate (20)
+        "zillow.com", "realtor.com", "redfin.com", "trulia.com", "homes.com", "remax.com", "century21.com", "coldwellbanker.com", "kw.com", "sothebysrealty.com", "compass.com", "corcoran.com", "zillowgroup.com", "loopnet.com", "officespace.com", "costar.com", "cushmanwakefield.com", "jll.com", "savills.com", "colliers.com"
     ]);
 
+    // Personal email domains
     const personalDomains = new Set([
         "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "msn.com",
-        // ...
-        "yahoo.com", "yandex.com", "icloud.com", "me.com",
-        // ...
-        "lavabit.com"
+        "hotmail.co.uk", "live.ca", "yahoo.com", "yahoo.co.uk", "yahoo.co.in", "ymail.com",
+        "rocketmail.com", "icloud.com", "me.com", "mac.com", "aol.com", "verizon.net", "zoho.com",
+        "mail.com", "consultant.com", "email.com", "usa.com", "post.com", "dr.com",
+        "protonmail.com", "proton.me", "tutanota.com", "tutanota.de", "gmx.com", "gmx.de",
+        "fastmail.com", "fastmail.fm", "messagingengine.com", "yandex.com", "yandex.ru",
+        "mailfence.com", "comcast.net", "att.net", "cox.net", "bellsouth.net", "shaw.ca",
+        "rogers.com", "telus.net", "btinternet.com", "orange.fr", "wanadoo.fr", "t-online.de",
+        "runbox.com", "posteo.net", "neomailbox.com", "countermail.com", "startmail.com", "lavabit.com"
     ]);
 
+    // Helper function to build inline badges with emoji & text
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
+    // Our version label
     window._identifyEmailVersion = "v37";
 
     /* ---------- 2. OFFICE READY ---------- */
     Office.onReady(() => {
         $(document).ready(() => {
+            // Hide the top banner by default
             const banner = new components.MessageBanner(document.querySelector(".MessageBanner"));
             banner.hideBanner();
+
             initTheme();
             wireThemeToggle();
             wireCollapsibles();
             loadProps();
+
+            // re-load props if user changes to a new message
             Office.context.mailbox.addHandlerAsync(Office.EventType.ItemChanged, loadProps);
         });
     });
@@ -71,12 +162,13 @@
 
     /* ---------- 4. COLLAPSIBLES ---------- */
     function wireCollapsibles() {
+        // Toggle .collapsed on click
         $(document).on("click", ".card.collapsible > .section-title", function () {
             $(this).closest(".card").toggleClass("collapsed");
         });
-        // For badges inside the new “links” or “attachments” cards, auto-expand that card if user clicks a badge, if desired.
-        // Example: $(document).on("click", "#linksBadgeContainer .inline-badge", () => $("#links-card").removeClass("collapsed"));
-        // (Currently omitted, add if you want that behavior.)
+
+        // If desired, auto-expand “links” card when user clicks a link badge:
+        // $(document).on("click", "#linksBadgeContainer .inline-badge", () => $("#links-card").removeClass("collapsed"));
     }
 
     /* ---------- 5. MAIN LOAD ---------- */
@@ -84,7 +176,7 @@
         const it = Office.context.mailbox.item;
         if (!it) return;
 
-        // meta
+        // item meta
         $("#dateTimeCreated").text(it.dateTimeCreated.toLocaleString());
         $("#dateTimeModified").text(it.dateTimeModified.toLocaleString());
         $("#itemClass").text(it.itemClass);
@@ -94,11 +186,12 @@
         // attachments
         renderAttachments(it);
 
-        // URLs
+        // links
         $("#links").text("Scanning…");
         scanBodyUrls(it, urls => {
             $("#links").html(urls.length ? urls.map(shortUrlSpan).join("<br/>") : "None");
 
+            // Count how many match sender's domain, your domain, or are external
             const senderBase = baseDom(dom((it.sender?.emailAddress || it.from.emailAddress || "").toLowerCase()));
             const userBase = baseDom(dom(Office.context.mailbox.userProfile.emailAddress || ""));
             const allDomains = urls.map(u => {
@@ -114,10 +207,9 @@
             const userCount = allDomains.filter(d => d === userBase).length;
             const externalCount = urls.length - senderCount;
 
-            // place link-based badges in #linksBadgeContainer
+            // place link-based badges into #linksBadgeContainer
             const $lnk = $("#linksBadgeContainer").empty();
 
-            // add badges only when count > 0
             if (externalCount) {
                 $lnk.prepend(
                     BADGE(`${externalCount} external URL${externalCount !== 1 ? "s" : ""}`, "URLs not matching sender’s domain")
@@ -134,7 +226,6 @@
                 );
             }
             if (urls.length) {
-                // totals only if at least 1 URL
                 $lnk.prepend(
                     BADGE(
                         `${urls.length} URL${urls.length !== 1 ? "s" : ""} | ${uniqueDomains.size} DOMAIN${uniqueDomains.size !== 1 ? "s" : ""}`,
@@ -143,7 +234,7 @@
                 );
             }
 
-            // collapse the “links-card” if no link badges
+            // collapse links card if no badges
             if (!$lnk.children().length) {
                 $("#links-card").addClass("collapsed");
             } else {
@@ -151,7 +242,7 @@
             }
         });
 
-        // addresses (with truncation helper)
+        // addresses
         $("#from").html(formatAddr(it.from));
         $("#sender").html(formatAddr(it.sender));
         $("#to").html(formatAddrs(it.to));
@@ -162,6 +253,7 @@
         $("#internetMessageId").html(truncateText(it.internetMessageId));
         $("#normalizedSubject").text(it.normalizedSubject);
 
+        // classification, authenticity, mismatch
         senderClassification(it);
         checkAuthHeaders(it);
         fromSenderMismatch(it);
@@ -185,7 +277,12 @@
         }
     }
     function fill(l) {
-        $("#attachments").html(l.length ? l.map(a => truncateText(a.name, true)).join("<br/>") : "None");
+        // You can wrap each file in <span class="file-label"> if you want bubble style
+        // For now, just insert <br/> between them:
+        $("#attachments").html(
+            l.length ? l.map(a => truncateText(a.name, true)).join("<br/>") : "None"
+        );
+
         const $ac = $("#attachmentBadgeContainer").empty();
         if (l.length) {
             $ac.append(
@@ -205,7 +302,7 @@
                 return;
             }
             const m = r.value.match(/https?:\/\/[^\s"'<>]+/gi) || [];
-            // limit to first 200 just for performance
+            // remove duplicates, limit to 200
             cb([...new Set(m)].slice(0, 200));
         });
     }
@@ -223,7 +320,9 @@
         }
     }
     function escapeHtml(s) {
-        return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+        return s.replace(/[&<>"']/g, c =>
+            ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+        );
     }
 
     /* ---------- 8. SENDER TYPE / VERIFIED ------------- */
@@ -231,7 +330,7 @@
         const email = (it.from?.emailAddress || "").toLowerCase();
         const base = baseDom(dom(email));
 
-        // Enhanced check: entire email in 'verifiedSenders' OR domain in 'verifiedDomains'.
+        // either entire email in verifiedSenders OR domain in verifiedDomains
         const isVerified = verifiedSenders.includes(email) || verifiedDomains.has(base);
 
         const vCls = isVerified ? "badge-verified" : "badge-unverified";
@@ -323,7 +422,7 @@
     }
     function baseDom(d) {
         if (!d) return "";
-        // remove leading subdomains like www, m, l, etc.
+        // remove common subdomain patterns like 'www.', 'm.', 'l.'
         d = d.replace(/^(?:www\d*|m\d*|l\d*)\./i, "");
         const p = d.split(".");
         return p.length <= 2 ? d : p.slice(-2).join(".");
@@ -339,12 +438,15 @@
         return `<span class="truncate" title="${escapeHtml(txt)}">${ell}</span>`;
     }
     function formatAddr(a) {
+        if (!a) return "";
         return `${a.displayName} &lt;${a.emailAddress}&gt;`;
     }
     function formatAddrs(arr) {
         return arr?.length ? arr.map(formatAddr).join("<br/>") : "None";
     }
     function escapeHtml(s) {
-        return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        return s.replace(/[&<>"']/g, c =>
+            ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+        );
     }
 })();
