@@ -16,7 +16,7 @@
 
     <!-- our CSS/JS assets hosted on GitHub Pages -->
     <link href="https://phawandjian.github.io/identify-email-addin/MessageRead.css?v=13" rel="stylesheet" />
-    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=36"></script>
+    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=37"></script>
 
     <!-- Fabric core from Microsoft -->
     <link rel="stylesheet"
@@ -87,12 +87,39 @@
         </div>
     </div>
 
-    <!-- ATTACHMENTS & LINKS -->
+    <!-- LINKS (formerly "Attachments & Links") -->
     <div class="card collapsible collapsed" id="threats-card">
         <div class="section-title">
             <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
             <svg viewBox="0 0 16 16"><path d="M1 8h14M8 1v14" /></svg>
-            <span>Attachments&nbsp;&amp;&nbsp;Links</span>
+            <span>Links</span>
+            <span id="linksBadgeContainer" style="display:none" class="badge-cell">
+                <!-- placeholder if you ever want a separate links badge container -->
+            </span>
+        </div>
+        <div class="card-body">
+            <div class="ms-Grid">
+                <!-- preserving old attachments row (hidden so we do not remove code) -->
+                <div class="ms-Grid-row" style="display: none;">
+                    <div class="ms-Grid-col ms-sm5">
+                        attachments (deprecated in v37, see new attachments-card)
+                    </div>
+                    <div id="attachments-obsolete" class="ms-Grid-col ms-sm7"></div>
+                </div>
+                <div class="ms-Grid-row">
+                    <div class="ms-Grid-col ms-sm5">urls</div>
+                    <div id="urls" class="ms-Grid-col ms-sm7"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ATTACHMENTS (new separate card) -->
+    <div class="card collapsible collapsed" id="attachments-card">
+        <div class="section-title">
+            <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
+            <svg viewBox="0 0 16 16"><path d="M1 8h14M8 1v14" /></svg>
+            <span>Attachments</span>
             <span id="attachBadgeContainer" class="badge-cell"></span>
         </div>
         <div class="card-body">
@@ -100,10 +127,6 @@
                 <div class="ms-Grid-row">
                     <div class="ms-Grid-col ms-sm5">attachments</div>
                     <div id="attachments" class="ms-Grid-col ms-sm7"></div>
-                </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">urls</div>
-                    <div id="urls" class="ms-Grid-col ms-sm7"></div>
                 </div>
             </div>
         </div>

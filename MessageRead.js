@@ -1,7 +1,11 @@
-﻿/* MessageRead.js – v36
+﻿/* MessageRead.js – v37
    Changes in v36:
    • Arrows inverted in HTML/CSS (see .chevron transforms there).
    • Added "kaseya.net" to verifiedDomains set.
+
+   Changes in v37:
+   • Attachments separated into their own collapsible card (#attachments-card).
+   • The click-handler for #attachBadgeContainer now expands #attachments-card instead of #threats-card.
 */
 
 (function () {
@@ -111,7 +115,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v36";
+    window._identifyEmailVersion = "v37";
 
     /* ---------- 2. OFFICE READY ---------- */
     Office.onReady(() => {
@@ -148,8 +152,8 @@
         $(document).on("click", ".card.collapsible > .section-title", function () {
             $(this).closest(".card").toggleClass("collapsed");
         });
-        // clicking any flag badge expands Attachments card
-        $(document).on("click", "#attachBadgeContainer .inline-badge", () => $("#threats-card").removeClass("collapsed"));
+        // clicking any flag badge expands ATTACHMENTS card
+        $(document).on("click", "#attachBadgeContainer .inline-badge", () => $("#attachments-card").removeClass("collapsed"));
     }
 
     /* ---------- 5. MAIN LOAD ---------- */
