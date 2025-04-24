@@ -172,7 +172,8 @@ html, body {
     align-items: center;
     padding: 2px 6px;
     font-size: 13px;
-    border: 2px solid #ff1744;
+    /* Removed the red outline below */
+    /* border: 2px solid #ff1744; */
     background: transparent;
     color: var(--text);
     border-radius: 4px;
