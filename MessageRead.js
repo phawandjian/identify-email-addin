@@ -1,4 +1,4 @@
-﻿/* MessageRead.js – v38
+﻿/* MessageRead.js – v39
    Changes in v36:
    • Arrows inverted in HTML/CSS (see .chevron transforms there).
    • Added "kaseya.net" to verifiedDomains set.
@@ -12,6 +12,11 @@
      own business domain, and if SPF/DKIM/DMARC are "pass" (non-personal domain).
    • Introduced window.__userDomain and window.__internalSenderTrusted to coordinate this logic in checkAuthHeaders
      and senderClassification without removing or breaking existing code.
+
+   Changes in v39 (fix internal trust display):
+   • The classification was happening before checkAuthHeaders finished. Now, after we set
+     window.__internalSenderTrusted in the async headers callback, we re-run senderClassification(it)
+     (and fromSenderMismatch(it) again) to immediately reflect the updated "Verified Sender" badge.
 */
 
 (function () {
@@ -247,6 +252,7 @@
         $("#internetMessageId").html(truncateText(it.internetMessageId));
         $("#normalizedSubject").text(it.normalizedSubject);
 
+        // Original order unchanged:
         senderClassification(it);
         checkAuthHeaders(it);
         fromSenderMismatch(it);
@@ -392,6 +398,11 @@
             ) {
                 window.__internalSenderTrusted = true;
             }
+
+            // v39 fix: after the async check finishes, re-run classification & mismatch
+            // to ensure the UI is updated if we just set __internalSenderTrusted=true
+            senderClassification(it);
+            fromSenderMismatch(it);
         });
     }
 
@@ -433,6 +444,9 @@
         if (txt.length <= max) return escapeHtml(txt);
         const ell = escapeHtml(txt.slice(0, max - 1) + "…");
         return `<span class="truncate" title="${escapeHtml(txt)}">${ell}</span>`;
+    }
+    function escapeHtml(s) {
+        return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
     }
     function formatAddr(a) {
         return `${a.displayName} &lt;${a.emailAddress}&gt;`;
