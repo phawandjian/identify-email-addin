@@ -38,7 +38,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v37";
+    window._identifyEmailVersion = "v41";
 
     // track user's domain and internal trust
     window.__userDomain = "";
