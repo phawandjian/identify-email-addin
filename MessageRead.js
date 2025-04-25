@@ -1,4 +1,10 @@
-﻿/* MessageRead.js – v41 Debug
+﻿/* MessageRead.js – v42
+   Builds on v41 debug version (no lines removed, only extra fallback logic added).
+   • If a message is purely internal (From domain matches user's domain),
+     envelope is either same domain or null, and SPF/DKIM/DMARC are absent/none,
+     we set window.__internalSenderTrusted = true as a fallback.
+
+   Original v41 notes preserved below:
    Changes in v36: Arrows inverted in HTML/CSS; added "kaseya.net".
    Changes in v37: Attachments -> separate collapsible card; #attachBadgeContainer -> #attachments-card.
    Changes in v38: Basic internal domain trust logic.
@@ -38,7 +44,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v41";
+    window._identifyEmailVersion = "v42"; // <- updated version label
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -319,6 +325,26 @@
                 console.log("DEBUG => Internal domain verified. Setting __internalSenderTrusted = true");
             } else {
                 console.log("DEBUG => Not marking as internal trust. Check conditions above.");
+
+                // >>> NEW: FALLBACK LOGIC FOR PURELY INTERNAL EMAILS WITH NO SPF/DKIM/DMARC <<<
+                // If fromBase matches userDomain, envDom is null or also userDomain, 
+                // and spf/dkim/dmarc are absent (none / null), we trust purely internal mail.
+                const noAuthData =
+                    (!spf || spf === "none" || spf === "null") &&
+                    (!dkim || dkim === "none") &&
+                    (!dmarc || dmarc === "null");
+                if (
+                    window.__userDomain &&
+                    domainsMatchForInternal(fromBase, window.__userDomain) &&
+                    (!envDom || domainsMatchForInternal(envDom, window.__userDomain)) &&
+                    !personalDomains.has(window.__userDomain.toLowerCase()) &&
+                    noAuthData
+                ) {
+                    window.__internalSenderTrusted = true;
+                    console.log("DEBUG => Fallback: purely internal message w/o external checks. Marking as trusted.");
+                } else {
+                    console.log("DEBUG => No fallback conditions met. Still not internal trust.");
+                }
             }
 
             // re-run classification & mismatch so UI updates
