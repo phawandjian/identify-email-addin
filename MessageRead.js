@@ -1,14 +1,8 @@
-﻿/* MessageRead.js – v45
-   Based on v44, adding link-wrapper filtering to strip Microsoft Safe Links, 
-   Proofpoint, Symantec, and aka.ms/learn rewrites to expose original URLs.
-   • decodeUrlWrappers() is added to detect and decode these wrappers.
-   • Called in scanBodyUrls to produce "clean" links.
-
-   Retains all code from v44:
-   - Direct-domain approach for internal trust (v40).
-   - Fallback if SPF=none for purely internal mail (v42).
-   - Full verifiedDomains & personalDomains from v40.
-   - Debug logs, attachments, mismatch checks, etc. unchanged.
+﻿/* MessageRead.js – v46
+   Builds on v45 with one addition:
+   • Adds a new check for “Proofpoint v3/__https://” syntax, so we properly decode
+     links like https://urldefense.com/v3/__https://www.sce.com/...
+   Everything else from v45 is unchanged, preserving all prior functionality.
 */
 
 (function () {
@@ -38,7 +32,7 @@
         // 4. Technology & Software (20)
         "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com", "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com", "gitlab.com", "atlassian.com",
 
-        // Inserted here: "kaseya.net"
+        /* Inserted here: "kaseya.net" */
         "kaseya.net",
 
         // 5. Electronics & Hardware (20)
@@ -120,7 +114,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v45";
+    window._identifyEmailVersion = "v46";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -292,41 +286,28 @@
         });
     }
 
-    // v45: new function to decode known link wrappers
+    // v45/v46: function to decode known link wrappers
     function decodeUrlWrappers(originalUrl) {
         let url = originalUrl.trim();
 
         try {
-            // Microsoft Safe Links: "https://*.safelinks.protection.outlook.com/?url=<encoded>"
-            // Proofpoint: "https://urldefense.proofpoint.com/v2/url?u=<encoded>"
-            // Symantec (Broadcom): "https://clicktime.symantec.com/..."
-            // aka.ms + learn redirects: "https://aka.ms/xxxxx?targetURL=..."
-            // We'll parse the relevant param and decode it.
-
             const lower = url.toLowerCase();
 
             // 1) Microsoft Safe Links
-            // Example: https://eur03.safelinks.protection.outlook.com/?url=https%3A%2F%2Fexample.com&data=...
             if (lower.includes("safelinks.protection.outlook.com/") && lower.includes("?url=")) {
                 const match = url.match(/[?&]url=([^&]+)/i);
                 if (match && match[1]) {
-                    // decode that param
                     const decodedParam = decodeURIComponent(match[1]);
                     return decodedParam.trim() || originalUrl;
                 }
             }
 
-            // 2) Proofpoint
-            // Example: https://urldefense.proofpoint.com/v2/url?u=https-3A__www.google.com_&d=...
+            // 2) Proofpoint older style
             if (lower.includes("urldefense.proofpoint.com") && lower.includes("?u=")) {
                 const match = url.match(/[?&]u=([^&]+)/i);
                 if (match && match[1]) {
                     let decodedParam = match[1];
-                    // these often have hyphens in place of punctuation
-                    // e.g. "https-3A__www.google.com_"
-                    // decode once
                     decodedParam = decodedParam.replace(/-/g, '%');
-                    // then decode as URI
                     try {
                         decodedParam = decodeURIComponent(decodedParam);
                         return decodedParam.trim() || originalUrl;
@@ -336,8 +317,16 @@
                 }
             }
 
+            // 2b) Proofpoint v3 "v3/__" pattern
+            if (lower.includes("urldefense.com/v3/__https://")) {
+                // e.g. https://urldefense.com/v3/__https://www.sce.com/...
+                const match = url.match(/\/v3\/__https?:\/\/(.+)/i);
+                if (match && match[1]) {
+                    return "https://" + match[1];
+                }
+            }
+
             // 3) Symantec / ClickTime
-            // Example: https://clicktime.symantec.com/3Hsdfih?u=https%3A%2F%2Fwww.yahoo.com
             if (lower.includes("clicktime.symantec.com") && lower.includes("?u=")) {
                 const match = url.match(/[?&]u=([^&]+)/i);
                 if (match && match[1]) {
@@ -346,9 +335,8 @@
                 }
             }
 
-            // 4) aka.ms / MS learn links (like "https://aka.ms/redirect?targetURL=" or "learn.microsoft.com/redirect?target=")
+            // 4) aka.ms / MS learn links
             if ((lower.includes("aka.ms/") || lower.includes("learn.microsoft.com")) && (lower.includes("targeturl=") || lower.includes("target="))) {
-                // possible query param "targetURL" or "target"
                 const match = url.match(/[?&](?:targeturl|target)=([^&]+)/i);
                 if (match && match[1]) {
                     const decodedParam = decodeURIComponent(match[1]);
@@ -356,10 +344,9 @@
                 }
             }
 
-            // if none matched or decode failed
+            // if none matched
             return originalUrl;
         } catch {
-            // in case of an error, return original
             return originalUrl;
         }
     }
