@@ -1,19 +1,14 @@
-﻿/* MessageRead.js – v43
-   Merged from v40, v42, and debug logic:
-   - Retains direct-domain approach from v40 for internal trust.
-   - Keeps fallback logic for purely internal mail with no SPF/DKIM/DMARC (v42).
-   - Preserves all debug logs introduced in v42.
-   - Fully restored verifiedDomains & personalDomains from v40 (no truncation).
-   - No placeholders or removed lines.
+﻿/* MessageRead.js – v45
+   Based on v44, adding link-wrapper filtering to strip Microsoft Safe Links, 
+   Proofpoint, Symantec, and aka.ms/learn rewrites to expose original URLs.
+   • decodeUrlWrappers() is added to detect and decode these wrappers.
+   • Called in scanBodyUrls to produce "clean" links.
 
-   Original legacy notes (v36 to v41):
-   • v36: Arrows inverted in HTML/CSS; added "kaseya.net".
-   • v37: Attachments -> separate collapsible card; attachBadgeContainer -> threats-card fix.
-   • v38: Basic internal domain trust logic (envelope domain, etc.).
-   • v39: Re-run classification after async finishes.
-   • v40: Full-domain matching for internal trust + large verifiedDomains set.
-   • v41: Debug logs for checkAuthHeaders.
-   • v42: Fallback logic if purely internal & SPF=none -> trust anyway.
+   Retains all code from v44:
+   - Direct-domain approach for internal trust (v40).
+   - Fallback if SPF=none for purely internal mail (v42).
+   - Full verifiedDomains & personalDomains from v40.
+   - Debug logs, attachments, mismatch checks, etc. unchanged.
 */
 
 (function () {
@@ -125,7 +120,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v44";
+    window._identifyEmailVersion = "v45";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -286,14 +281,94 @@
                 cb([]);
                 return;
             }
-            const m = r.value.match(/https?:\/\/[^\s"'<>]+/gi) || [];
-            cb([...new Set(m)].slice(0, 200));
+            // Find all potential URLs in the plain-text body
+            const matches = r.value.match(/https?:\/\/[^\s"'<>]+/gi) || [];
+
+            // v45 new: decode each link if it's a known wrapper (Safe Links, Proofpoint, etc.)
+            const decoded = matches.map(u => decodeUrlWrappers(u));
+
+            // unique set, limit 200
+            cb([...new Set(decoded)].slice(0, 200));
         });
     }
+
+    // v45: new function to decode known link wrappers
+    function decodeUrlWrappers(originalUrl) {
+        let url = originalUrl.trim();
+
+        try {
+            // Microsoft Safe Links: "https://*.safelinks.protection.outlook.com/?url=<encoded>"
+            // Proofpoint: "https://urldefense.proofpoint.com/v2/url?u=<encoded>"
+            // Symantec (Broadcom): "https://clicktime.symantec.com/..."
+            // aka.ms + learn redirects: "https://aka.ms/xxxxx?targetURL=..."
+            // We'll parse the relevant param and decode it.
+
+            const lower = url.toLowerCase();
+
+            // 1) Microsoft Safe Links
+            // Example: https://eur03.safelinks.protection.outlook.com/?url=https%3A%2F%2Fexample.com&data=...
+            if (lower.includes("safelinks.protection.outlook.com/") && lower.includes("?url=")) {
+                const match = url.match(/[?&]url=([^&]+)/i);
+                if (match && match[1]) {
+                    // decode that param
+                    const decodedParam = decodeURIComponent(match[1]);
+                    return decodedParam.trim() || originalUrl;
+                }
+            }
+
+            // 2) Proofpoint
+            // Example: https://urldefense.proofpoint.com/v2/url?u=https-3A__www.google.com_&d=...
+            if (lower.includes("urldefense.proofpoint.com") && lower.includes("?u=")) {
+                const match = url.match(/[?&]u=([^&]+)/i);
+                if (match && match[1]) {
+                    let decodedParam = match[1];
+                    // these often have hyphens in place of punctuation
+                    // e.g. "https-3A__www.google.com_"
+                    // decode once
+                    decodedParam = decodedParam.replace(/-/g, '%');
+                    // then decode as URI
+                    try {
+                        decodedParam = decodeURIComponent(decodedParam);
+                        return decodedParam.trim() || originalUrl;
+                    } catch {
+                        // fallback
+                    }
+                }
+            }
+
+            // 3) Symantec / ClickTime
+            // Example: https://clicktime.symantec.com/3Hsdfih?u=https%3A%2F%2Fwww.yahoo.com
+            if (lower.includes("clicktime.symantec.com") && lower.includes("?u=")) {
+                const match = url.match(/[?&]u=([^&]+)/i);
+                if (match && match[1]) {
+                    const decodedParam = decodeURIComponent(match[1]);
+                    return decodedParam.trim() || originalUrl;
+                }
+            }
+
+            // 4) aka.ms / MS learn links (like "https://aka.ms/redirect?targetURL=" or "learn.microsoft.com/redirect?target=")
+            if ((lower.includes("aka.ms/") || lower.includes("learn.microsoft.com")) && (lower.includes("targeturl=") || lower.includes("target="))) {
+                // possible query param "targetURL" or "target"
+                const match = url.match(/[?&](?:targeturl|target)=([^&]+)/i);
+                if (match && match[1]) {
+                    const decodedParam = decodeURIComponent(match[1]);
+                    return decodedParam.trim() || originalUrl;
+                }
+            }
+
+            // if none matched or decode failed
+            return originalUrl;
+        } catch {
+            // in case of an error, return original
+            return originalUrl;
+        }
+    }
+
     function shortUrlSpan(u) {
         const s = truncateUrl(u, 30);
         return `<span class="short-url" title="${escapeHtml(u)}">${escapeHtml(s)}</span>`;
     }
+
     function truncateUrl(u, max) {
         try {
             const { protocol, hostname, pathname } = new URL(u);
@@ -317,7 +392,6 @@
             verifiedDomains.has(base) ||
             window.__internalSenderTrusted;
 
-        // Debug log from v42
         console.log("DEBUG => senderClassification: email=", email,
             "base=", base,
             "verifiedDomainsHasBase=", verifiedDomains.has(base),
@@ -337,7 +411,7 @@
         );
     }
 
-    /* ---------- 9. AUTH HEADERS (v42 debug + fallback) ---------- */
+    /* ---------- 9. AUTH HEADERS ---------- */
     function checkAuthHeaders(it) {
         if (!it.getAllInternetHeadersAsync) return;
         it.getAllInternetHeadersAsync(r => {
@@ -367,7 +441,6 @@
                 }
             });
 
-            // Additional debug logs
             const fromBaseFull = fullDomain(it.from.emailAddress) || "";
             console.log("DEBUG => User domain:", window.__userDomain);
             console.log("DEBUG => From address:", it.from.emailAddress, "-> fromBase:", fromBaseFull);
@@ -403,7 +476,7 @@
                 $("#auth-card").removeClass("collapsed");
             }
 
-            // Direct-domain approach for internal trust
+            // direct-domain approach for internal trust
             if (
                 window.__userDomain &&
                 domainsMatchForInternal(fromBaseFull, window.__userDomain) &&
@@ -416,7 +489,7 @@
             } else {
                 console.log("DEBUG => Not marking as internal trust. Check conditions above.");
 
-                // v42 fallback logic: purely internal if SPF=none, etc.
+                // fallback logic for purely internal with no SPF/DKIM/DMARC
                 const noAuthData =
                     (!spf || spf === "none" || spf === "null") &&
                     (!dkim || dkim === "none") &&
@@ -435,7 +508,7 @@
                 }
             }
 
-            // re-run classification & mismatch for updated UI
+            // re-run classification & mismatch so UI updates
             senderClassification(it);
             fromSenderMismatch(it);
         });
