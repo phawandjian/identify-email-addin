@@ -44,7 +44,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v42"; // <- updated version label
+    window._identifyEmailVersion = "v43"; // <- updated version label
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -235,6 +235,15 @@
             verifiedSenders.includes(email) ||
             verifiedDomains.has(base) ||
             window.__internalSenderTrusted;
+
+        // NEW LOG LINES:
+        console.log("DEBUG => senderClassification: email=", email,
+            "base=", base,
+            "verifiedDomainsHasBase=", verifiedDomains.has(base),
+            "personalDomainsHasBase=", personalDomains.has(base),
+            "internalSenderTrusted=", window.__internalSenderTrusted,
+            "=> final isVerified=", isVerified
+        );
 
         const vCls = isVerified ? "badge-verified" : "badge-unverified";
         const personal = personalDomains.has(base);
