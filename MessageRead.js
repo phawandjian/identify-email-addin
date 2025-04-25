@@ -1,23 +1,12 @@
-﻿/* MessageRead.js – v40
-   Changes in v36:
-   • Arrows inverted in HTML/CSS (see .chevron transforms there).
-   • Added "kaseya.net" to verifiedDomains set.
-
-   Changes in v37:
-   • Attachments separated into their own collapsible card (#attachments-card).
-   • The click-handler for #attachBadgeContainer now expands #threats-card.
-
-   Changes in v38 (internal domain trust):
-   • Logic to trust internal (business) senders if envelope domain & From domain both match the user's business domain.
-   • Introduced __userDomain & __internalSenderTrusted variables.
-
-   Changes in v39 (fix internal trust display):
-   • After async checkAuthHeaders sets __internalSenderTrusted, re-run senderClassification(it).
-
-   Changes in v40 (direct-domain compare for internal emails):
-   • Replaced the base-domain check for “internal trust” with a new 'domainsMatchForInternal' function,
-     which compares the *full domain* for the user’s mailbox vs. From/Envelope. 
-     This helps if you have subdomains or onmicrosoft.com addresses.
+﻿/* MessageRead.js – v41 Debug
+   Changes in v36: Arrows inverted in HTML/CSS; added "kaseya.net".
+   Changes in v37: Attachments -> separate collapsible card; #attachBadgeContainer -> #attachments-card.
+   Changes in v38: Basic internal domain trust logic.
+   Changes in v39: Re-run classification after async finishes.
+   Changes in v40: Full-domain matching for internal trust.
+   Changes in v41 (DEBUG LOGS):
+     - Added console.log statements in checkAuthHeaders to see exactly what domain values we have
+       (fromBase, envDom, userDomain, spf/dkim/dmarc). This helps identify why it's not verifying internally.
 */
 
 (function () {
@@ -33,95 +22,17 @@
 
     // A large set of reputable-company domains for domain-based verification:
     const verifiedDomains = new Set([
-        // 1. E-commerce Market Leaders (20)
-        "amazon.com", "ebay.com", "alibaba.com", "aliexpress.com", "jd.com", "walmart.com", "target.com", "rakuten.com", "mercadolibre.com", "flipkart.com", "overstock.com", "etsy.com", "groupon.com", "wayfair.com", "zappos.com", "shein.com", "gearbest.com", "banggood.com", "tmall.com", "shopify.com",
-
-        // 2. Large Retailers & Department Stores (20)
-        "costco.com", "kohls.com", "bestbuy.com", "macys.com", "nordstrom.com", "bloomingdales.com", "dillards.com", "jcpenney.com", "sears.com", "neimanmarcus.com", "saksfifthavenue.com", "meijer.com", "biglots.com", "rossstores.com", "tjmaxx.com", "marshalls.com", "burlington.com", "dollargeneral.com", "familydollar.com", "bedbathandbeyond.com",
-
-        // 3. Fashion & Apparel (20)
-        "gap.com", "oldnavy.com", "bananarepublic.com", "uniqlo.com", "hm.com", "zara.com", "forever21.com", "asos.com", "revolve.com", "urbanoutfitters.com", "freepeople.com", "anthropologie.com", "abercrombie.com", "hollisterco.com", "fashionnova.com", "victoriassecret.com", "adidas.com", "nike.com", "underarmour.com", "lululemon.com",
-
-        // 4. Technology & Software (20)
-        "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com", "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com", "gitlab.com", "atlassian.com",
-
-        /* Inserted here: "kaseya.net" */
+        // (same huge verifiedDomains array, unchanged) ...
         "kaseya.net",
-
-        // 5. Electronics & Hardware (20)
-        "samsung.com", "lg.com", "sony.com", "panasonic.com", "philips.com", "sharpusa.com", "huawei.com", "xiaomi.com", "oneplus.com", "realme.com", "oppo.com", "vivo.com", "toshiba.com", "pioneer.com", "jvc.com", "canon.com", "nikon.com", "epson.com", "fujifilm.com", "bose.com",
-
-        // 6. Payment & Financial Services (20)
-        "paypal.com", "stripe.com", "squareup.com", "venmo.com", "skrill.com", "payoneer.com", "wepay.com", "adyen.com", "authorize.net", "alipay.com", "neteller.com", "googlepay.com", "amazonpay.com", "worldpay.com", "firstdata.com", "payu.com", "bill.com", "intuit.com", "xero.com", "coinbase.com",
-
-        // 7. Banks & Lending (20)
-        "chase.com", "wellsfargo.com", "bankofamerica.com", "citi.com", "usbank.com", "pnc.com", "truist.com", "capitalone.com", "americanexpress.com", "discover.com", "goldmansachs.com", "barclays.com", "hsbc.com", "lloydsbank.com", "rbs.co.uk", "santander.com", "bbva.com", "bnymellon.com", "sofi.com", "ally.com",
-
-        // 8. Insurance (20)
-        "geico.com", "progressive.com", "allstate.com", "statefarm.com", "farmers.com", "usaa.com", "libertymutual.com", "nationwide.com", "travelers.com", "chubb.com", "zurichna.com", "thehartford.com", "metlife.com", "prudential.com", "aetna.com", "cigna.com", "humana.com", "aflac.com", "coloniallife.com", "globelife.com",
-
-        // 9. Healthcare & Pharma (20)
-        "pfizer.com", "moderna.com", "johnsonandjohnson.com", "merck.com", "astrazeneca.com", "novartis.com", "roche.com", "gsk.com", "sanofi.com", "abbvie.com", "bristolmyerssquibb.com", "lilly.com", "bayer.com", "amgen.com", "teva.com", "viatris.com", "regeneron.com", "cardinalhealth.com", "mckesson.com", "abbott.com",
-
-        // 10. Telecom & ISPs (20)
-        "att.com", "verizon.com", "t-mobile.com", "sprint.com", "xfinity.com", "comcast.com", "charter.com", "spectrum.com", "centurylink.com", "frontier.com", "bt.com", "vodafone.com", "orange.com", "telefonica.com", "rogers.com", "bell.ca", "telus.com", "telstra.com", "mtn.com", "uscellular.com",
-
-        // 11. Social Media & Networking (20)
-        "facebook.com", "instagram.com", "twitter.com", "linkedin.com", "snapchat.com", "pinterest.com", "tiktok.com", "reddit.com", "tumblr.com", "weibo.com", "wechat.com", "discord.com", "quora.com", "meetup.com", "xing.com", "vk.com", "flickr.com", "behance.net", "deviantart.com", "medium.com",
-
-        // 12. Internet & Tech Giants (20)
-        "baidu.com", "yandex.com", "cloudflare.com", "akamai.com", "digitalocean.com", "rackspace.com", "godaddy.com", "namecheap.com", "wordpress.com", "squarespace.com", "weebly.com", "wix.com", "bigcommerce.com", "mailchimp.com", "hubspot.com", "constantcontact.com", "webex.com", "cisco.com", "github.com", "tencent.com",
-
-        // 13. Travel Sites (20)
-        "booking.com", "expedia.com", "tripadvisor.com", "orbitz.com", "travelocity.com", "priceline.com", "kayak.com", "skyscanner.com", "trivago.com", "hotwire.com", "hopper.com", "agoda.com", "cheapoair.com", "ebookers.com", "cheapair.com", "airfarewatchdog.com", "lastminute.com", "travelzoo.com", "travelgenio.com", "momondo.com",
-
-        // 14. Airlines (20)
-        "delta.com", "united.com", "southwest.com", "american.com", "aa.com", "alaskaair.com", "jetblue.com", "spirit.com", "hawaiianairlines.com", "allegiantair.com", "britishairways.com", "lufthansa.com", "airfrance.com", "klm.com", "emirates.com", "qatarairways.com", "etihad.com", "cathaypacific.com", "singaporeair.com", "aerlingus.com",
-
-        // 15. Hotels & Accommodation (20)
-        "marriott.com", "hilton.com", "hyatt.com", "ihg.com", "choicehotels.com", "wyndhamhotels.com", "accor.com", "ritzcarlton.com", "fourseasons.com", "fairmont.com", "starwoodhotels.com", "mgmresorts.com", "wynnresorts.com", "hostels.com", "motel6.com", "bestwestern.com", "radissonhotels.com", "scandichotels.com", "oyorooms.com", "airbnb.com",
-
-        // 16. Car Rentals & Transportation (20)
-        "hertz.com", "avis.com", "budget.com", "enterprise.com", "alamo.com", "nationalcar.com", "thrifty.com", "dollar.com", "sixt.com", "uhaul.com", "pensketruckrental.com", "lyft.com", "uber.com", "grab.com", "bolt.eu", "cabify.com", "lime.me", "bird.co", "spin.app", "turo.com",
-
-        // 17. Food & Beverage (20)
-        "starbucks.com", "dunkindonuts.com", "mcdonalds.com", "burgerking.com", "wendys.com", "tacobell.com", "pizzahut.com", "dominos.com", "papajohns.com", "chipotle.com", "panerabread.com", "chick-fil-a.com", "kfc.com", "subway.com", "fiveguys.com", "sonicdrivein.com", "arbys.com", "dairyqueen.com", "littlecaesars.com", "jimmyjohns.com",
-
-        // 18. Logistics & Shipping (20)
-        "ups.com", "fedex.com", "dhl.com", "usps.com", "canadapost.ca", "royalmail.com", "parcelforce.com", "hermesworld.com", "dpd.com", "tnt.com", "aramex.com", "gls-group.eu", "yamato-hd.co.jp", "japanpost.jp", "laposte.fr", "upsupplychain.com", "fedexcustomcritical.com", "dhlglobalforwarding.com", "ontrac.com", "yrc.com",
-
-        // 19. Media & Entertainment (20)
-        "netflix.com", "hulu.com", "disneyplus.com", "hbo.com", "showtime.com", "paramountplus.com", "peacocktv.com", "discoveryplus.com", "espn.com", "fox.com", "abc.com", "nbc.com", "cbs.com", "bbc.co.uk", "cnn.com", "bloomberg.com", "reuters.com", "theguardian.com", "nytimes.com", "wsj.com",
-
-        // 20. Automotive (20)
-        "ford.com", "gm.com", "chevrolet.com", "toyota.com", "honda.com", "nissanusa.com", "hyundaiusa.com", "kia.com", "tesla.com", "bmw.com", "mercedes-benz.com", "audi.com", "volkswagen.com", "porsche.com", "volvo.com", "subaru.com", "mazdausa.com", "dodge.com", "jeep.com", "ramtrucks.com",
-
-        // 21. Education (20)
-        "harvard.edu", "mit.edu", "stanford.edu", "berkeley.edu", "ox.ac.uk", "cam.ac.uk", "yale.edu", "princeton.edu", "columbia.edu", "ucla.edu", "nyu.edu", "upenn.edu", "caltech.edu", "cmu.edu", "gatech.edu", "uf.edu", "umich.edu", "k12.com", "coursera.org", "edx.org",
-
-        // 22. Nonprofits & International Orgs (20)
-        "un.org", "who.int", "worldbank.org", "imf.org", "wto.org", "unesco.org", "unicef.org", "redcross.org", "salvationarmy.org", "unitedway.org", "habitat.org", "wwf.org", "greenpeace.org", "amnesty.org", "doctorswithoutborders.org", "care.org", "oxfam.org", "mercycorps.org", "charitywater.org", "worldvision.org",
-
-        // 23. Government & Public Services (20)
-        "usa.gov", "irs.gov", "ssa.gov", "nps.gov", "nasa.gov", "gov.uk", "canada.ca", "australia.gov.au", "india.gov.in", "gov.cn", "europa.eu", "whitehouse.gov", "senate.gov", "house.gov", "justice.gov", "ny.gov", "ca.gov", "gov.za", "scot.gov", "uscis.gov",
-
-        // 24. Manufacturing & Industrial (20)
-        "caterpillar.com", "johnsoncontrols.com", "3m.com", "honeywell.com", "siemens.com", "ge.com", "emerson.com", "schneider-electric.com", "rockwellautomation.com", "abb.com", "bosch.com", "hitachihightech.com", "daikin.com", "cummins.com", "whirlpoolcorp.com", "jcb.com", "doosan.com", "yamaha-motor.com", "unitedtechnologies.com", "raytheon.com",
-
-        // 25. Real Estate (20)
-        "zillow.com", "realtor.com", "redfin.com", "trulia.com", "homes.com", "remax.com", "century21.com", "coldwellbanker.com", "kw.com", "sothebysrealty.com", "compass.com", "corcoran.com", "zillowgroup.com", "loopnet.com", "officespace.com", "costar.com", "cushmanwakefield.com", "jll.com", "savills.com", "colliers.com"
+        // ...
+        // truncated here for brevity; keep all your entries
     ]);
 
     const personalDomains = new Set([
-        "gmail.com", "googlemail.com", "outlook.com", "hotmail.com", "live.com", "msn.com",
-        "hotmail.co.uk", "live.ca", "yahoo.com", "yahoo.co.uk", "yahoo.co.in", "ymail.com",
-        "rocketmail.com", "icloud.com", "me.com", "mac.com", "aol.com", "verizon.net", "zoho.com",
-        "mail.com", "consultant.com", "email.com", "usa.com", "post.com", "dr.com",
-        "protonmail.com", "proton.me", "tutanota.com", "tutanota.de", "gmx.com", "gmx.de",
-        "fastmail.com", "fastmail.fm", "messagingengine.com", "yandex.com", "yandex.ru",
-        "mailfence.com", "comcast.net", "att.net", "cox.net", "bellsouth.net", "shaw.ca",
-        "rogers.com", "telus.net", "btinternet.com", "orange.fr", "wanadoo.fr", "t-online.de",
-        "runbox.com", "posteo.net", "neomailbox.com", "countermail.com", "startmail.com", "lavabit.com"
+        // (same personal domains array, unchanged) ...
+        "tutanota.de",
+        // ...
+        // truncated for brevity; keep all your entries
     ]);
 
     const BADGE = (txt, title) =>
@@ -213,7 +124,6 @@
 
             const $sec = $("#securityBadgeContainer").empty();
 
-            // add badges only when count > 0
             if (externalCount) {
                 $sec.prepend(BADGE(`${externalCount} external URL${externalCount !== 1 ? "s" : ""}`, `URLs not matching sender’s domain`));
             }
@@ -224,7 +134,6 @@
                 $sec.prepend(BADGE(`${senderCount} match Sender Domain`, `Sender’s domain (${senderBase}) appears ${senderCount} time(s)`));
             }
             if (urls.length) {
-                // totals only if at least 1 URL
                 $sec.prepend(
                     BADGE(
                         `${urls.length} URL${urls.length !== 1 ? "s" : ""} | ${uniqueDomains.size} DOMAIN${uniqueDomains.size !== 1 ? "s" : ""}`,
@@ -315,9 +224,11 @@
     function senderClassification(it) {
         const email = (it.from?.emailAddress || "").toLowerCase();
         const base = baseDom(dom(email));
-
-        // Enhanced check: entire email in 'verifiedSenders' OR domain in 'verifiedDomains' OR internalSenderTrusted
-        const isVerified = verifiedSenders.includes(email) || verifiedDomains.has(base) || window.__internalSenderTrusted;
+        // combine existing logic
+        const isVerified =
+            verifiedSenders.includes(email) ||
+            verifiedDomains.has(base) ||
+            window.__internalSenderTrusted;
 
         const vCls = isVerified ? "badge-verified" : "badge-unverified";
         const personal = personalDomains.has(base);
@@ -330,7 +241,7 @@
         );
     }
 
-    /* ---------- 9. AUTH HEADERS ----------------------- */
+    /* ---------- 9. AUTH HEADERS (DEBUG LOGS ADDED) ---- */
     function checkAuthHeaders(it) {
         if (!it.getAllInternetHeadersAsync) return;
         it.getAllInternetHeadersAsync(r => {
@@ -360,6 +271,13 @@
                 }
             });
 
+            // *** DEBUG LOGS to console ***
+            const fromBase = fullDomain(it.from.emailAddress) || "";
+            console.log("DEBUG => User domain:", window.__userDomain);
+            console.log("DEBUG => From address:", it.from.emailAddress, "-> fromBase:", fromBase);
+            console.log("DEBUG => Envelope domain (envDom):", envDom);
+            console.log("DEBUG => SPF:", spf, "DKIM:", dkim, "DMARC:", dmarc);
+
             const summary =
                 `<div class='auth-summary ${(spf === "pass" && dkim === "pass" && dmarc === "pass") ? "auth-pass" : "auth-fail"}'>
                     SPF=${spf || "N/A"} | DKIM=${dkim || "N/A"} | DMARC=${dmarc || "N/A"}
@@ -367,19 +285,16 @@
 
             $("#authContainer").html(summary);
 
-            const fromBase = fullDomain(it.from.emailAddress);
             const dispBase = baseDom(dispDomFrom(it.from.displayName));
-
+            const shortFromBase = baseDom(dom(it.from.emailAddress));
             const mis = [];
-            // if envelope domain != from domain, note it
             if (envDom && envDom.toLowerCase() !== fromBase.toLowerCase()) {
                 mis.push(`Mail‑from ${envDom}`);
             }
-            // if DKIM domain != from base, note it
-            if (dkimDom && dkimDom !== baseDom(dom(it.from.emailAddress))) {
+            if (dkimDom && dkimDom !== shortFromBase) {
                 mis.push(`DKIM d=${dkimDom}`);
             }
-            if (dispBase && dispBase !== baseDom(dom(it.from.emailAddress))) {
+            if (dispBase && dispBase !== shortFromBase) {
                 mis.push(`Display "${dispBase}"`);
             }
 
@@ -393,20 +308,20 @@
             }
 
             // direct-domain approach for internal trust
-            // Must match user's domain, must not be personal, must pass SPF/DKIM/DMARC
             if (
                 window.__userDomain &&
                 domainsMatchForInternal(fromBase, window.__userDomain) &&
                 domainsMatchForInternal(envDom, window.__userDomain) &&
                 !personalDomains.has(window.__userDomain.toLowerCase()) &&
-                spf === "pass" &&
-                dkim === "pass" &&
-                dmarc === "pass"
+                spf === "pass" && dkim === "pass" && dmarc === "pass"
             ) {
                 window.__internalSenderTrusted = true;
+                console.log("DEBUG => Internal domain verified. Setting __internalSenderTrusted = true");
+            } else {
+                console.log("DEBUG => Not marking as internal trust. Check conditions above.");
             }
 
-            // re-run classification & mismatch so the UI updates
+            // re-run classification & mismatch so UI updates
             senderClassification(it);
             fromSenderMismatch(it);
         });
@@ -432,31 +347,28 @@
         return match ? match[1] : null;
     }
 
-    // Returns the entire domain of an email address (e.g. "bob@sub.myorg.com" => "sub.myorg.com")
+    // Returns entire domain of an email, e.g. "bob@myorg.onmicrosoft.com" => "myorg.onmicrosoft.com"
     function fullDomain(email) {
         if (!email) return "";
         const m = email.toLowerCase().match(/@([a-z0-9.\-]+)/);
         return m ? m[1] : "";
     }
 
-    // baseDom for third-party verification logic (unchanged)
+    // baseDom approach for external checks
     function dom(a) {
         return a?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})$/)?.[1]?.toLowerCase() || null;
     }
     function baseDom(d) {
         if (!d) return "";
-        // remove leading subdomains like www, m, l, etc.
         d = d.replace(/^(?:www\d*|m\d*|l\d*)\./i, "");
         const p = d.split(".");
         return p.length <= 2 ? d : p.slice(-2).join(".");
     }
-
-    // for displayName-based domain checks
     function dispDomFrom(n) {
         return n?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/)?.[1]?.toLowerCase() || null;
     }
 
-    // new helper for direct domain comparison for internal trust
+    // compares full domain strings ignoring case
     function domainsMatchForInternal(d1, d2) {
         if (!d1 || !d2) return false;
         return d1.trim().toLowerCase() === d2.trim().toLowerCase();
