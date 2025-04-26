@@ -166,7 +166,14 @@ html, body {
 .badge-business {
     background: #4fc3f7;
 }
+/* 💡 NEW: dedicated colours for SPF result */
+.badge-spf-pass {
+    background: var(--badge-ok);
+}
 
+.badge-spf-fail {
+    background: var(--badge-bad);
+}
 .inline-badge {
     display: inline-flex;
     align-items: center;
