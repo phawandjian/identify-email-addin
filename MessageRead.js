@@ -1,7 +1,8 @@
-﻿/* MessageRead.js – v47
-   Builds on v46 to further improve Proofpoint/urldefense URL decoding:
-   • Adds a new "2c) Additional Proofpoint variants" block to handle v2/v4/etc.
-   • Keeps all existing code and comments intact.
+﻿/* MessageRead.js – v48
+   Builds on v47 to handle chained trackers/multiple layers of URL-wrappers:
+   • Adds “2d) iterative decode logic” so if decoding one pass still leaves us with
+     another recognized wrapper, we decode repeatedly until no more changes.
+   • Keeps all existing code, comments, functionality intact.
 */
 
 (function () {
@@ -113,7 +114,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v47"; // leaving this reference but we note v47 above
+    window._identifyEmailVersion = "v48"; // updated to v48
     // track user's domain and internal trust
     window.__userDomain = "";
     window.__internalSenderTrusted = false;
@@ -276,7 +277,7 @@
             // Find all potential URLs in the plain-text body
             const matches = r.value.match(/https?:\/\/[^\s"'<>]+/gi) || [];
 
-            // v45/v47: decode each link if it's a known wrapper (Safe Links, Proofpoint, etc.)
+            // v48: decode each link possibly multiple times if layered
             const decoded = matches.map(u => decodeUrlWrappers(u));
 
             // unique set, limit 200
@@ -284,10 +285,23 @@
         });
     }
 
-    // v45/v47: function to decode known link wrappers
+    // 2d) iterative decode approach
     function decodeUrlWrappers(originalUrl) {
         let url = originalUrl.trim();
+        while (true) {
+            const newUrl = decodeOnePass(url);
+            // If no change, we’re done
+            if (newUrl === url) {
+                break;
+            }
+            url = newUrl;
+        }
+        return url;
+    }
 
+    // v47 logic now moved into decodeOnePass()
+    function decodeOnePass(originalUrl) {
+        let url = originalUrl.trim();
         try {
             const lower = url.toLowerCase();
 
@@ -324,14 +338,12 @@
                 }
             }
 
-            // 2c) Additional Proofpoint variants (e.g. v2, v4, any vN + http/https)
-            //     Also attempts basic decode if there's any '-' in the domain/path.
+            // 2c) Additional Proofpoint variants
             if (/urldefense\.com\/v\d+\/__http/i.test(lower)) {
                 const m = url.match(/\/v(\d+)\/__http(s?):\/\/(.+)/i);
                 if (m && m[3]) {
                     let proto = "http" + (m[2] || "");
                     let remainder = m[3];
-                    // try decoding the dash-encoded form (similar to older style)
                     if (remainder.includes("-")) {
                         let replaced = remainder.replace(/-/g, '%');
                         try {
@@ -363,8 +375,9 @@
                 }
             }
 
-            // if none matched
+            // if none matched, return original
             return originalUrl;
+
         } catch {
             return originalUrl;
         }
