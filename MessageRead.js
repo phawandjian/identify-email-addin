@@ -1,7 +1,6 @@
-﻿/* MessageRead.js – v49
-   Builds on v48 by adding a “2e) Partial slash fix” for links like:
-   https://urldefense.com/v3/__http:/... (single slash instead of double).
-   Keeps all existing code/comments unchanged, only adding new logic.
+﻿/* MessageRead.js – v50
+   Builds on v49 by moving the “Domain/Sender Mismatch” flags into the SECURITY FLAGS card only.
+   All existing code and comments are preserved; mismatches no longer appear in the Auth card.
 */
 
 (function () {
@@ -113,7 +112,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v49"; // updated to v49
+    window._identifyEmailVersion = "v50"; // updated to v50
     // track user's domain and internal trust
     window.__userDomain = "";
     window.__internalSenderTrusted = false;
@@ -508,9 +507,17 @@
             }
 
             if (mis.length) {
-                $("#authContainer").prepend(
+                // Moved from #authContainer to #securityBadgeContainer
+                $("#securityBadgeContainer").prepend(
                     BADGE("DOMAIN SENDER MISMATCH", `From: ${fromBaseFull}\nMismatched E-mail Address: ${mis.join(", ")}`)
                 );
+                $("#security-card").removeClass("collapsed");
+
+                // OLD (commented out, not removed):
+                // $("#authContainer").prepend(
+                //     BADGE("DOMAIN SENDER MISMATCH", `From: ${fromBaseFull}\nMismatched E-mail Address: ${mis.join(", ")}`)
+                // );
+                // $("#auth-card").removeClass("collapsed");
             }
             if (mis.length || (spf && spf !== "pass") || (dkim && dkim !== "pass") || (dmarc && dmarc !== "pass")) {
                 $("#auth-card").removeClass("collapsed");
@@ -559,10 +566,17 @@
         const fromBase = baseDom(dom(it.from?.emailAddress || ""));
         const senderBase = baseDom(dom(it.sender?.emailAddress || ""));
         if (!fromBase || !senderBase || fromBase === senderBase) return;
-        $("#authContainer").prepend(
+        // Moved from #authContainer to #securityBadgeContainer
+        $("#securityBadgeContainer").prepend(
             BADGE("FROM ⁄ SENDER MISMATCH", `From: ${fromBase}\nSender: ${senderBase}`)
         );
-        $("#auth-card").removeClass("collapsed");
+        $("#security-card").removeClass("collapsed");
+
+        // OLD (commented out, not removed):
+        // $("#authContainer").prepend(
+        //     BADGE("FROM ⁄ SENDER MISMATCH", `From: ${fromBase}\nSender: ${senderBase}`)
+        // );
+        // $("#auth-card").removeClass("collapsed");
     }
 
     /* ---------- 11. UTIL + TRUNCATE TEXT -------------- */
