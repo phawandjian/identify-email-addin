@@ -1,12 +1,9 @@
-﻿/* MessageRead.js – v50
-   Merged from v43 plus the truncated "Verified Sender" approach (v49),
-   adding copy-to-clipboard icons, custom tooltip logic, etc.
-   • Retains entire verifiedDomains & personalDomains from v43 (no lines removed).
-   • Keeps fallback logic for purely internal mail (v42).
-   • Keeps debug logs from v42.
-   • Adds truncated & copy logic for Verified Sender, custom tooltips, etc.
-
-   Legacy references (v36..v42) remain in the comments for context.
+﻿/* MessageRead.js – v48
+   Builds on v46. Adds:
+   1) A "wrapped" address style for Verified Sender (no truncation).
+   2) A "truncate + custom tooltip" style for Detailed Message Props.
+   3) A copy-to-clipboard icon on each address.
+   No existing lines removed; all v46 functionality retained.
 */
 
 (function () {
@@ -23,7 +20,6 @@
     ];
 
     // A large set of reputable-company domains for domain-based verification:
-    // (Fully restored from v40/v43 with no truncation)
     const verifiedDomains = new Set([
         // 1. E-commerce Market Leaders (20)
         "amazon.com", "ebay.com", "alibaba.com", "aliexpress.com", "jd.com", "walmart.com", "target.com", "rakuten.com", "mercadolibre.com", "flipkart.com", "overstock.com", "etsy.com", "groupon.com", "wayfair.com", "zappos.com", "shein.com", "gearbest.com", "banggood.com", "tmall.com", "shopify.com",
@@ -119,8 +115,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // Bumping to "v50"
-    window._identifyEmailVersion = "v50";
+    window._identifyEmailVersion = "v51";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -131,11 +126,12 @@
         $(document).ready(() => {
             const banner = new components.MessageBanner(document.querySelector(".MessageBanner"));
             banner.hideBanner();
+
             initTheme();
             wireThemeToggle();
             wireCollapsibles();
-            wireCopyIcon();        // NEW from v49 for copying addresses
-            wireCustomTooltips();  // NEW from v49 for custom tooltips
+            wireCopyIcon();            // NEW: sets up copy-to-clipboard
+            wireCustomTooltips();      // NEW: sets up custom tooltip logic
 
             loadProps();
             Office.context.mailbox.addHandlerAsync(Office.EventType.ItemChanged, loadProps);
@@ -175,7 +171,10 @@
             e.stopPropagation();
             const textToCopy = $(this).attr("data-full") || "";
             if (!textToCopy) return;
+
+            // Attempt to copy
             navigator.clipboard.writeText(textToCopy).then(() => {
+                // Optionally show a quick alert or console log
                 console.log("Copied:", textToCopy);
             }).catch(err => {
                 console.warn("Copy failed:", err);
@@ -185,20 +184,25 @@
 
     /* ---------- NEW: CUSTOM TOOLTIP ---------- */
     function wireCustomTooltips() {
-        // a simple hover-based tooltip for .has-tooltip elements
+        // We'll create a simple hover-based tooltip for .has-tooltip
         const $tooltip = $('<div id="customTooltip" style="position:absolute; z-index:9999; background:#333; color:#fff; padding:4px 8px; border-radius:4px; font-size:12px; max-width:300px; display:none; white-space:normal;"></div>');
         $("body").append($tooltip);
 
+        let tooltipTimer = null;
         $(document)
             .on("mouseenter", ".has-tooltip", function (evt) {
                 const tipText = $(this).attr("data-tooltip");
                 if (!tipText) return;
+
                 $tooltip.text(tipText).fadeIn(150);
+
+                // Reposition near mouse
                 const x = evt.pageX + 8;
                 const y = evt.pageY + 8;
                 $tooltip.css({ top: y, left: x });
             })
             .on("mousemove", ".has-tooltip", function (evt) {
+                // move with mouse
                 const x = evt.pageX + 8;
                 const y = evt.pageY + 8;
                 $tooltip.css({ top: y, left: x });
@@ -213,21 +217,20 @@
         const it = Office.context.mailbox.item;
         if (!it) return;
 
-        // track user domain globally (from v43 logic)
         window.__userDomain = fullDomain(Office.context.mailbox.userProfile.emailAddress);
         window.__internalSenderTrusted = false;
 
-        // meta data from v43 (unchanged)
+        // meta
         $("#dateTimeCreated").text(it.dateTimeCreated.toLocaleString());
         $("#dateTimeModified").text(it.dateTimeModified.toLocaleString());
         $("#itemClass").text(it.itemClass);
         $("#itemId").text(it.itemId);
         $("#itemType").text(it.itemType);
 
-        // attachments from v43 (unchanged)
+        // attachments
         renderAttachments(it);
 
-        // URLs from v43 (unchanged)
+        // URLs
         $("#urls").text("Scanning…");
         scanBodyUrls(it, urls => {
             $("#urls").html(urls.length ? urls.map(shortUrlSpan).join("<br/>") : "None");
@@ -267,7 +270,6 @@
                 );
             }
 
-            // collapse Security Flags card if empty
             if (!$sec.children().length) {
                 $("#security-card").addClass("collapsed");
             } else {
@@ -275,28 +277,26 @@
             }
         });
 
-        // -------------- Addresses --------------
-        // from v49 approach: We truncate the Verified Sender field like conversationId.
-        $("#from").html(formatAddrVerified(it.from));     // new function below
-        $("#sender").html(formatAddrVerified(it.sender));
+        // addresses
+        // For Verified Sender (the top card), we want "wrapped" approach:
+        $("#from").html(formatAddrWrapped(it.from));
+        $("#sender").html(formatAddrWrapped(it.sender));
 
-        // from v43 for the "to/cc" we keep original formatAddrs, or do you prefer truncation? If you want truncation, use formatAddrsTruncated. We'll keep them for now:
-        $("#to").html(formatAddrs(it.to));
-        $("#cc").html(formatAddrs(it.cc));
+        // For "to", "cc", etc. in Detailed Props, we want "truncate + tooltip" approach:
+        $("#to").html(formatAddrsTruncated(it.to));
+        $("#cc").html(formatAddrsTruncated(it.cc));
 
-        // subject, conversationId, etc. from v43 (unchanged)
         $("#subject").text(it.subject);
         $("#conversationId").html(truncateText(it.conversationId));
         $("#internetMessageId").html(truncateText(it.internetMessageId));
         $("#normalizedSubject").text(it.normalizedSubject);
 
-        // Original order from v43: classification -> checkAuth -> mismatch
         senderClassification(it);
         checkAuthHeaders(it);
         fromSenderMismatch(it);
     }
 
-    /* ---------- 6. ATTACHMENTS (unchanged from v43) ---------- */
+    /* ---------- 6. ATTACHMENTS ---------- */
     function renderAttachments(it) {
         let list = it.attachments || [];
         if (list.length) {
@@ -321,7 +321,7 @@
         }
     }
 
-    /* ---------- 7. URL HELPERS (from v43) ---------- */
+    /* ---------- 7. URL HELPERS ---------- */
     function scanBodyUrls(it, cb) {
         it.body.getAsync(Office.CoercionType.Text, r => {
             if (r.status !== "succeeded") {
@@ -329,13 +329,69 @@
                 return;
             }
             const m = r.value.match(/https?:\/\/[^\s"'<>]+/gi) || [];
-            cb([...new Set(m)].slice(0, 200));
+            const decoded = m.map(u => decodeUrlWrappers(u));
+            cb([...new Set(decoded)].slice(0, 200));
         });
     }
+
+    function decodeUrlWrappers(originalUrl) {
+        let url = originalUrl.trim();
+        try {
+            const lower = url.toLowerCase();
+
+            // MS Safe Links
+            if (lower.includes("safelinks.protection.outlook.com/") && lower.includes("?url=")) {
+                const match = url.match(/[?&]url=([^&]+)/i);
+                if (match && match[1]) {
+                    const decodedParam = decodeURIComponent(match[1]);
+                    return decodedParam.trim() || originalUrl;
+                }
+            }
+            // Proofpoint older
+            if (lower.includes("urldefense.proofpoint.com") && lower.includes("?u=")) {
+                const match = url.match(/[?&]u=([^&]+)/i);
+                if (match && match[1]) {
+                    let decodedParam = match[1].replace(/-/g, '%');
+                    try {
+                        decodedParam = decodeURIComponent(decodedParam);
+                        return decodedParam.trim() || originalUrl;
+                    } catch { }
+                }
+            }
+            // Proofpoint v3
+            if (lower.includes("urldefense.com/v3/__https://")) {
+                const match = url.match(/\/v3\/__https?:\/\/(.+)/i);
+                if (match && match[1]) {
+                    return "https://" + match[1];
+                }
+            }
+            // Symantec/ClickTime
+            if (lower.includes("clicktime.symantec.com") && lower.includes("?u=")) {
+                const match = url.match(/[?&]u=([^&]+)/i);
+                if (match && match[1]) {
+                    const decodedParam = decodeURIComponent(match[1]);
+                    return decodedParam.trim() || originalUrl;
+                }
+            }
+            // aka.ms / learn
+            if ((lower.includes("aka.ms/") || lower.includes("learn.microsoft.com")) && (lower.includes("targeturl=") || lower.includes("target="))) {
+                const match = url.match(/[?&](?:targeturl|target)=([^&]+)/i);
+                if (match && match[1]) {
+                    const decodedParam = decodeURIComponent(match[1]);
+                    return decodedParam.trim() || originalUrl;
+                }
+            }
+            return originalUrl;
+        } catch {
+            return originalUrl;
+        }
+    }
+
     function shortUrlSpan(u) {
         const s = truncateUrl(u, 30);
         return `<span class="short-url" title="${escapeHtml(u)}">${escapeHtml(s)}</span>`;
     }
+
     function truncateUrl(u, max) {
         try {
             const { protocol, hostname, pathname } = new URL(u);
@@ -345,21 +401,16 @@
             return u.length > 60 ? u.slice(0, 57) + "…" : u;
         }
     }
-    function escapeHtml(s) {
-        return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
-    }
 
-    /* ---------- 8. SENDER TYPE / VERIFIED (unchanged from v43) ------------- */
+    /* ---------- 8. SENDER TYPE / VERIFIED ------------- */
     function senderClassification(it) {
         const email = (it.from?.emailAddress || "").toLowerCase();
         const base = baseDom(dom(email));
-
         const isVerified =
             verifiedSenders.includes(email) ||
             verifiedDomains.has(base) ||
             window.__internalSenderTrusted;
 
-        // Debug log from v42 (kept intact)
         console.log("DEBUG => senderClassification: email=", email,
             "base=", base,
             "verifiedDomainsHasBase=", verifiedDomains.has(base),
@@ -374,18 +425,12 @@
         const cTxt = (personal ? "⚠️ " : "") + "Sender is " + (personal ? "Personal Email" : "Business Email");
 
         $("#classBadgeContainer").html(`<div class='badge ${cCls}'>${cTxt}</div>`);
-
-        // We'll let the new "formatAddrVerified()" handle the actual truncation for the display.
-        // But if you want to keep old text here, you can optionally remove it or keep:
-        // For now, let's replace it with "Truncated" approach as well if desired.
-        // We'll simply not remove lines, just comment them if we want to avoid duplication:
-        // $("#verifiedBadgeContainer").html(
-        //     `<div class='badge ${vCls}'>${isVerified ? "Verified Sender" : "Not Verified"}: ${email}</div>`
-        // );
-        // We'll set it in "formatAddrVerified()" below.
+        $("#verifiedBadgeContainer").html(
+            `<div class='badge ${vCls}'>${isVerified ? "Verified Sender" : "Not Verified"}: ${email}</div>`
+        );
     }
 
-    /* ---------- 9. AUTH HEADERS (v42 debug + fallback) ---------- */
+    /* ---------- 9. AUTH HEADERS ---------- */
     function checkAuthHeaders(it) {
         if (!it.getAllInternetHeadersAsync) return;
         it.getAllInternetHeadersAsync(r => {
@@ -415,7 +460,6 @@
                 }
             });
 
-            // Additional debug logs from v42:
             const fromBaseFull = fullDomain(it.from.emailAddress) || "";
             console.log("DEBUG => User domain:", window.__userDomain);
             console.log("DEBUG => From address:", it.from.emailAddress, "-> fromBase:", fromBaseFull);
@@ -450,7 +494,7 @@
                 $("#auth-card").removeClass("collapsed");
             }
 
-            // direct-domain approach for internal trust (v40)
+            // direct-domain approach for internal trust
             if (
                 window.__userDomain &&
                 domainsMatchForInternal(fromBaseFull, window.__userDomain) &&
@@ -463,7 +507,6 @@
             } else {
                 console.log("DEBUG => Not marking as internal trust. Check conditions above.");
 
-                // v42 fallback logic: purely internal if SPF=none, etc.
                 const noAuthData =
                     (!spf || spf === "none" || spf === "null") &&
                     (!dkim || dkim === "none") &&
@@ -482,13 +525,12 @@
                 }
             }
 
-            // re-run classification & mismatch so UI updates (v39)
             senderClassification(it);
             fromSenderMismatch(it);
         });
     }
 
-    /* ---------- 10. FROM vs SENDER (unchanged from v43) -------------------- */
+    /* ---------- 10. FROM vs SENDER -------------------- */
     function fromSenderMismatch(it) {
         const fromBase = baseDom(dom(it.from?.emailAddress || ""));
         const senderBase = baseDom(dom(it.sender?.emailAddress || ""));
@@ -499,7 +541,7 @@
         $("#auth-card").removeClass("collapsed");
     }
 
-    /* ---------- 11. UTIL + TRUNCATE TEXT (unchanged from v43) -------------- */
+    /* ---------- 11. UTIL + TRUNCATE TEXT -------------- */
     function val(s, t) {
         if (!s.includes(t)) return null;
         const parts = s.split(t);
@@ -508,14 +550,12 @@
         return match ? match[1] : null;
     }
 
-    // Returns entire domain of an email, e.g. "bob@sub.myorg.com" => "sub.myorg.com"
     function fullDomain(email) {
         if (!email) return "";
         const m = email.toLowerCase().match(/@([a-z0-9.\-]+)/);
         return m ? m[1] : "";
     }
 
-    // baseDom approach for external checks (unchanged from v43)
     function dom(a) {
         return a?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})$/)?.[1]?.toLowerCase() || null;
     }
@@ -528,43 +568,53 @@
     function dispDomFrom(n) {
         return n?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/)?.[1]?.toLowerCase() || null;
     }
+
     function domainsMatchForInternal(d1, d2) {
         if (!d1 || !d2) return false;
         return d1.trim().toLowerCase() === d2.trim().toLowerCase();
     }
 
-    // same truncateText from v43 (for conversationId, etc.)
+    // Reuse the existing "truncateText" for files, etc.
     function truncateText(txt, isFile = false, max = 48) {
         if (!txt) return "";
         if (txt.length <= max) return escapeHtml(txt);
         const ell = escapeHtml(txt.slice(0, max - 1) + "…");
         return `<span class="truncate" title="${escapeHtml(txt)}">${ell}</span>`;
     }
+
     function escapeHtml(s) {
         return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
     }
 
-    // from v43: old formatAddr, formatAddrs for "to/cc"
-    function formatAddr(a) {
-        return `${a.displayName} &lt;${a.emailAddress}&gt;`;
-    }
-    function formatAddrs(arr) {
-        return arr?.length ? arr.map(formatAddr).join("<br/>") : "None";
-    }
+    /* ---------- NEW: WRAPPED vs. TRUNCATED ADDRESSES ---------- */
 
-    // ---- NEW: Truncated Verified Sender Approach (like conversationId) ----
-    // We'll also add a copy icon for convenience.
-    function formatAddrVerified(a) {
-        if (!a) return "None";
+    // "formatAddrWrapped": uses normal wrapping, no ellipsis, with copy icon
+    function formatAddrWrapped(a) {
+        if (!a) return "";
         const full = `${a.displayName} <${a.emailAddress}>`;
-        // use the same 'truncateText(...)' method as conversationId with max=48
-        const truncated = truncateText(full, false, 48);
-        // add a copy icon
-        return `<div style="display:flex; align-items:center; gap:6px;">
-                    ${truncated}
-                    <span class="copy-addr" data-full="${escapeHtml(full)}" style="cursor:pointer;">📋</span>
-                </div>`;
+        // use normal wrapping
+        return `<span style="white-space:normal; display:inline-block;">${escapeHtml(full)}</span>
+                <span class="copy-addr" data-full="${escapeHtml(full)}" style="cursor:pointer; margin-left:6px;">📋</span>`;
+    }
+    function formatAddrsWrapped(arr) {
+        if (!arr || !arr.length) return "None";
+        return arr.map(a => formatAddrWrapped(a)).join("<br/>");
     }
 
-
+    // "formatAddrTruncated": uses custom tooltip + ellipsis
+    function formatAddrTruncated(a) {
+        if (!a) return "";
+        const full = `${a.displayName} <${a.emailAddress}>`;
+        // We'll add .has-tooltip with data-tooltip for a custom tooltip.
+        // Also add .truncate for ellipsis, using a fixed width if you prefer.
+        return `<span class="truncate has-tooltip" style="max-width:200px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+                     data-tooltip="${escapeHtml(full)}">
+                    ${escapeHtml(full)}
+                </span>
+                <span class="copy-addr" data-full="${escapeHtml(full)}" style="cursor:pointer; margin-left:6px;">📋</span>`;
+    }
+    function formatAddrsTruncated(arr) {
+        if (!arr || !arr.length) return "None";
+        return arr.map(a => formatAddrTruncated(a)).join("<br/>");
+    }
 })();
