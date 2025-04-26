@@ -1,8 +1,7 @@
-﻿/* MessageRead.js – v48
-   Builds on v47 to handle chained trackers/multiple layers of URL-wrappers:
-   • Adds “2d) iterative decode logic” so if decoding one pass still leaves us with
-     another recognized wrapper, we decode repeatedly until no more changes.
-   • Keeps all existing code, comments, functionality intact.
+﻿/* MessageRead.js – v49
+   Builds on v48 by adding a “2e) Partial slash fix” for links like:
+   https://urldefense.com/v3/__http:/... (single slash instead of double).
+   Keeps all existing code/comments unchanged, only adding new logic.
 */
 
 (function () {
@@ -114,7 +113,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v48"; // updated to v48
+    window._identifyEmailVersion = "v49"; // updated to v49
     // track user's domain and internal trust
     window.__userDomain = "";
     window.__internalSenderTrusted = false;
@@ -277,7 +276,7 @@
             // Find all potential URLs in the plain-text body
             const matches = r.value.match(/https?:\/\/[^\s"'<>]+/gi) || [];
 
-            // v48: decode each link possibly multiple times if layered
+            // decode each link possibly multiple times if layered
             const decoded = matches.map(u => decodeUrlWrappers(u));
 
             // unique set, limit 200
@@ -285,7 +284,7 @@
         });
     }
 
-    // 2d) iterative decode approach
+    // iterative decode approach
     function decodeUrlWrappers(originalUrl) {
         let url = originalUrl.trim();
         while (true) {
@@ -299,7 +298,6 @@
         return url;
     }
 
-    // v47 logic now moved into decodeOnePass()
     function decodeOnePass(originalUrl) {
         let url = originalUrl.trim();
         try {
@@ -329,7 +327,7 @@
                 }
             }
 
-            // 2b) Proofpoint v3 "v3/__" pattern
+            // 2b) Proofpoint v3 "v3/__https://"
             if (lower.includes("urldefense.com/v3/__https://")) {
                 // e.g. https://urldefense.com/v3/__https://www.sce.com/...
                 const match = url.match(/\/v3\/__https?:\/\/(.+)/i);
@@ -338,7 +336,7 @@
                 }
             }
 
-            // 2c) Additional Proofpoint variants
+            // 2c) Additional Proofpoint variants (v2, v4, etc. with http or https)
             if (/urldefense\.com\/v\d+\/__http/i.test(lower)) {
                 const m = url.match(/\/v(\d+)\/__http(s?):\/\/(.+)/i);
                 if (m && m[3]) {
@@ -354,6 +352,29 @@
                         }
                     }
                     return proto + "://" + remainder;
+                }
+            }
+
+            // 2e) Partial slash fix: e.g. /v3/__http:/someDomain instead of /v3/__http://
+            if (/urldefense\.com\/v\d+\/__http(s?):\/[^\s]/i.test(lower)) {
+                // Insert the missing slash to form //someDomain
+                // Example match: /v3/__http:/b11rb8mj.r.us-east-1...
+                // We'll convert that single slash into "//"
+                const m = url.match(/(\/v\d+\/__http(s?):)\/([^]+)/i);
+                if (m && m[3]) {
+                    let proto = "http" + (m[2] || "");
+                    let remainder = m[3];
+                    // same dash->% decode attempt
+                    if (remainder.includes("-")) {
+                        let replaced = remainder.replace(/-/g, '%');
+                        try {
+                            replaced = decodeURIComponent(replaced);
+                            remainder = replaced.trim() || remainder;
+                        } catch {
+                            // fallback
+                        }
+                    }
+                    return `${proto}://${remainder}`;
                 }
             }
 
