@@ -1,6 +1,6 @@
-﻿/* MessageRead.js – v50
-   Builds on v49 by moving the “Domain/Sender Mismatch” flags into the SECURITY FLAGS card only.
-   All existing code and comments are preserved; mismatches no longer appear in the Auth card.
+﻿/* MessageRead.js – v51
+   Builds on v50 by adding "Copy to Clipboard" buttons for key fields.
+   All existing code and comments are preserved.
 */
 
 (function () {
@@ -112,7 +112,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v50"; // updated to v50
+    window._identifyEmailVersion = "v51"; // updated to v51
     // track user's domain and internal trust
     window.__userDomain = "";
     window.__internalSenderTrusted = false;
@@ -125,6 +125,7 @@
             initTheme();
             wireThemeToggle();
             wireCollapsibles();
+            initCopyButtons(); // NEW – wire up clipboard copy
             loadProps();
             Office.context.mailbox.addHandlerAsync(Office.EventType.ItemChanged, loadProps);
         });
@@ -357,8 +358,6 @@
             // 2e) Partial slash fix: e.g. /v3/__http:/someDomain instead of /v3/__http://
             if (/urldefense\.com\/v\d+\/__http(s?):\/[^\s]/i.test(lower)) {
                 // Insert the missing slash to form //someDomain
-                // Example match: /v3/__http:/b11rb8mj.r.us-east-1...
-                // We'll convert that single slash into "//"
                 const m = url.match(/(\/v\d+\/__http(s?):)\/([^]+)/i);
                 if (m && m[3]) {
                     let proto = "http" + (m[2] || "");
@@ -512,13 +511,8 @@
                     BADGE("DOMAIN SENDER MISMATCH", `From: ${fromBaseFull}\nMismatched E-mail Address: ${mis.join(", ")}`)
                 );
                 $("#security-card").removeClass("collapsed");
-
-                // OLD (commented out, not removed):
-                // $("#authContainer").prepend(
-                //     BADGE("DOMAIN SENDER MISMATCH", `From: ${fromBaseFull}\nMismatched E-mail Address: ${mis.join(", ")}`)
-                // );
-                // $("#auth-card").removeClass("collapsed");
             }
+
             if (mis.length || (spf && spf !== "pass") || (dkim && dkim !== "pass") || (dmarc && dmarc !== "pass")) {
                 $("#auth-card").removeClass("collapsed");
             }
@@ -566,17 +560,10 @@
         const fromBase = baseDom(dom(it.from?.emailAddress || ""));
         const senderBase = baseDom(dom(it.sender?.emailAddress || ""));
         if (!fromBase || !senderBase || fromBase === senderBase) return;
-        // Moved from #authContainer to #securityBadgeContainer
         $("#securityBadgeContainer").prepend(
             BADGE("FROM ⁄ SENDER MISMATCH", `From: ${fromBase}\nSender: ${senderBase}`)
         );
         $("#security-card").removeClass("collapsed");
-
-        // OLD (commented out, not removed):
-        // $("#authContainer").prepend(
-        //     BADGE("FROM ⁄ SENDER MISMATCH", `From: ${fromBase}\nSender: ${senderBase}`)
-        // );
-        // $("#auth-card").removeClass("collapsed");
     }
 
     /* ---------- 11. UTIL + TRUNCATE TEXT -------------- */
@@ -629,4 +616,39 @@
     function formatAddrs(arr) {
         return arr?.length ? arr.map(formatAddr).join("<br/>") : "None";
     }
+
+    /* ---------- 12. NEW: CLIPBOARD COPY ---------- */
+    function initCopyButtons() {
+        // Listen for clicks on any button with class "copy-btn" and data-copy-target="..."
+        $(document).on("click", ".copy-btn", function (e) {
+            e.preventDefault();
+            const targetId = $(this).data("copyTarget");
+            // Grab the text content from the matching element
+            const textToCopy = $("#" + targetId).text().trim();
+            if (!textToCopy) return;
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    // OPTIONAL: you could show a quick success notice
+                    console.log("Copied to clipboard:", textToCopy);
+                }).catch(() => {
+                    console.warn("Clipboard copy failed");
+                });
+            } else {
+                // Fallback for older browsers
+                try {
+                    const temp = document.createElement("textarea");
+                    temp.value = textToCopy;
+                    document.body.appendChild(temp);
+                    temp.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(temp);
+                    console.log("Copied to clipboard via fallback:", textToCopy);
+                } catch (ex) {
+                    console.warn("Clipboard copy fallback failed", ex);
+                }
+            }
+        });
+    }
+
 })();
