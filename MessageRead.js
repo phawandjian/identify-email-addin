@@ -1,9 +1,8 @@
-﻿/* MessageRead.js – v48
-   Builds on v46. Adds:
-   1) A "wrapped" address style for Verified Sender (no truncation).
-   2) A "truncate + custom tooltip" style for Detailed Message Props.
-   3) A copy-to-clipboard icon on each address.
-   No existing lines removed; all v46 functionality retained.
+﻿/* MessageRead.js – v46
+   Builds on v45 with one addition:
+   • Adds a new check for “Proofpoint v3/__https://” syntax, so we properly decode
+     links like https://urldefense.com/v3/__https://www.sce.com/...
+   Everything else from v45 is unchanged, preserving all prior functionality.
 */
 
 (function () {
@@ -33,7 +32,7 @@
         // 4. Technology & Software (20)
         "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com", "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com", "gitlab.com", "atlassian.com",
 
-        // Inserted here: "kaseya.net"
+        /* Inserted here: "kaseya.net" */
         "kaseya.net",
 
         // 5. Electronics & Hardware (20)
@@ -115,7 +114,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v51";
+    window._identifyEmailVersion = "v46";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -126,13 +125,9 @@
         $(document).ready(() => {
             const banner = new components.MessageBanner(document.querySelector(".MessageBanner"));
             banner.hideBanner();
-
             initTheme();
             wireThemeToggle();
             wireCollapsibles();
-            wireCopyIcon();            // NEW: sets up copy-to-clipboard
-            wireCustomTooltips();      // NEW: sets up custom tooltip logic
-
             loadProps();
             Office.context.mailbox.addHandlerAsync(Office.EventType.ItemChanged, loadProps);
         });
@@ -164,59 +159,12 @@
         $(document).on("click", "#attachBadgeContainer .inline-badge", () => $("#attachments-card").removeClass("collapsed"));
     }
 
-    /* ---------- NEW: COPY ICON ---------- */
-    function wireCopyIcon() {
-        // On click of .copy-addr, copy the "data-full" text to clipboard
-        $(document).on("click", ".copy-addr", function (e) {
-            e.stopPropagation();
-            const textToCopy = $(this).attr("data-full") || "";
-            if (!textToCopy) return;
-
-            // Attempt to copy
-            navigator.clipboard.writeText(textToCopy).then(() => {
-                // Optionally show a quick alert or console log
-                console.log("Copied:", textToCopy);
-            }).catch(err => {
-                console.warn("Copy failed:", err);
-            });
-        });
-    }
-
-    /* ---------- NEW: CUSTOM TOOLTIP ---------- */
-    function wireCustomTooltips() {
-        // We'll create a simple hover-based tooltip for .has-tooltip
-        const $tooltip = $('<div id="customTooltip" style="position:absolute; z-index:9999; background:#333; color:#fff; padding:4px 8px; border-radius:4px; font-size:12px; max-width:300px; display:none; white-space:normal;"></div>');
-        $("body").append($tooltip);
-
-        let tooltipTimer = null;
-        $(document)
-            .on("mouseenter", ".has-tooltip", function (evt) {
-                const tipText = $(this).attr("data-tooltip");
-                if (!tipText) return;
-
-                $tooltip.text(tipText).fadeIn(150);
-
-                // Reposition near mouse
-                const x = evt.pageX + 8;
-                const y = evt.pageY + 8;
-                $tooltip.css({ top: y, left: x });
-            })
-            .on("mousemove", ".has-tooltip", function (evt) {
-                // move with mouse
-                const x = evt.pageX + 8;
-                const y = evt.pageY + 8;
-                $tooltip.css({ top: y, left: x });
-            })
-            .on("mouseleave", ".has-tooltip", function () {
-                $tooltip.hide();
-            });
-    }
-
     /* ---------- 5. MAIN LOAD ---------- */
     function loadProps() {
         const it = Office.context.mailbox.item;
         if (!it) return;
 
+        // track user domain globally
         window.__userDomain = fullDomain(Office.context.mailbox.userProfile.emailAddress);
         window.__internalSenderTrusted = false;
 
@@ -270,6 +218,7 @@
                 );
             }
 
+            // collapse Security Flags card if empty
             if (!$sec.children().length) {
                 $("#security-card").addClass("collapsed");
             } else {
@@ -278,19 +227,17 @@
         });
 
         // addresses
-        // For Verified Sender (the top card), we want "wrapped" approach:
-        $("#from").html(formatAddrWrapped(it.from));
-        $("#sender").html(formatAddrWrapped(it.sender));
-
-        // For "to", "cc", etc. in Detailed Props, we want "truncate + tooltip" approach:
-        $("#to").html(formatAddrsTruncated(it.to));
-        $("#cc").html(formatAddrsTruncated(it.cc));
-
+        $("#from").html(formatAddr(it.from));
+        $("#sender").html(formatAddr(it.sender));
+        $("#to").html(formatAddrs(it.to));
+        $("#cc").html(formatAddrs(it.cc));
         $("#subject").text(it.subject);
+
         $("#conversationId").html(truncateText(it.conversationId));
         $("#internetMessageId").html(truncateText(it.internetMessageId));
         $("#normalizedSubject").text(it.normalizedSubject);
 
+        // Original order: classification -> checkAuth -> mismatch
         senderClassification(it);
         checkAuthHeaders(it);
         fromSenderMismatch(it);
@@ -328,18 +275,25 @@
                 cb([]);
                 return;
             }
-            const m = r.value.match(/https?:\/\/[^\s"'<>]+/gi) || [];
-            const decoded = m.map(u => decodeUrlWrappers(u));
+            // Find all potential URLs in the plain-text body
+            const matches = r.value.match(/https?:\/\/[^\s"'<>]+/gi) || [];
+
+            // v45 new: decode each link if it's a known wrapper (Safe Links, Proofpoint, etc.)
+            const decoded = matches.map(u => decodeUrlWrappers(u));
+
+            // unique set, limit 200
             cb([...new Set(decoded)].slice(0, 200));
         });
     }
 
+    // v45/v46: function to decode known link wrappers
     function decodeUrlWrappers(originalUrl) {
         let url = originalUrl.trim();
+
         try {
             const lower = url.toLowerCase();
 
-            // MS Safe Links
+            // 1) Microsoft Safe Links
             if (lower.includes("safelinks.protection.outlook.com/") && lower.includes("?url=")) {
                 const match = url.match(/[?&]url=([^&]+)/i);
                 if (match && match[1]) {
@@ -347,25 +301,32 @@
                     return decodedParam.trim() || originalUrl;
                 }
             }
-            // Proofpoint older
+
+            // 2) Proofpoint older style
             if (lower.includes("urldefense.proofpoint.com") && lower.includes("?u=")) {
                 const match = url.match(/[?&]u=([^&]+)/i);
                 if (match && match[1]) {
-                    let decodedParam = match[1].replace(/-/g, '%');
+                    let decodedParam = match[1];
+                    decodedParam = decodedParam.replace(/-/g, '%');
                     try {
                         decodedParam = decodeURIComponent(decodedParam);
                         return decodedParam.trim() || originalUrl;
-                    } catch { }
+                    } catch {
+                        // fallback
+                    }
                 }
             }
-            // Proofpoint v3
+
+            // 2b) Proofpoint v3 "v3/__" pattern
             if (lower.includes("urldefense.com/v3/__https://")) {
+                // e.g. https://urldefense.com/v3/__https://www.sce.com/...
                 const match = url.match(/\/v3\/__https?:\/\/(.+)/i);
                 if (match && match[1]) {
                     return "https://" + match[1];
                 }
             }
-            // Symantec/ClickTime
+
+            // 3) Symantec / ClickTime
             if (lower.includes("clicktime.symantec.com") && lower.includes("?u=")) {
                 const match = url.match(/[?&]u=([^&]+)/i);
                 if (match && match[1]) {
@@ -373,7 +334,8 @@
                     return decodedParam.trim() || originalUrl;
                 }
             }
-            // aka.ms / learn
+
+            // 4) aka.ms / MS learn links
             if ((lower.includes("aka.ms/") || lower.includes("learn.microsoft.com")) && (lower.includes("targeturl=") || lower.includes("target="))) {
                 const match = url.match(/[?&](?:targeturl|target)=([^&]+)/i);
                 if (match && match[1]) {
@@ -381,6 +343,8 @@
                     return decodedParam.trim() || originalUrl;
                 }
             }
+
+            // if none matched
             return originalUrl;
         } catch {
             return originalUrl;
@@ -401,11 +365,15 @@
             return u.length > 60 ? u.slice(0, 57) + "…" : u;
         }
     }
+    function escapeHtml(s) {
+        return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
+    }
 
     /* ---------- 8. SENDER TYPE / VERIFIED ------------- */
     function senderClassification(it) {
         const email = (it.from?.emailAddress || "").toLowerCase();
         const base = baseDom(dom(email));
+
         const isVerified =
             verifiedSenders.includes(email) ||
             verifiedDomains.has(base) ||
@@ -470,6 +438,7 @@
                 `<div class='auth-summary ${(spf === "pass" && dkim === "pass" && dmarc === "pass") ? "auth-pass" : "auth-fail"}'>
                     SPF=${spf || "N/A"} | DKIM=${dkim || "N/A"} | DMARC=${dmarc || "N/A"}
                 </div>`;
+
             $("#authContainer").html(summary);
 
             const dispBase = baseDom(dispDomFrom(it.from.displayName));
@@ -507,6 +476,7 @@
             } else {
                 console.log("DEBUG => Not marking as internal trust. Check conditions above.");
 
+                // fallback logic for purely internal with no SPF/DKIM/DMARC
                 const noAuthData =
                     (!spf || spf === "none" || spf === "null") &&
                     (!dkim || dkim === "none") &&
@@ -525,6 +495,7 @@
                 }
             }
 
+            // re-run classification & mismatch so UI updates
             senderClassification(it);
             fromSenderMismatch(it);
         });
@@ -550,12 +521,14 @@
         return match ? match[1] : null;
     }
 
+    // Returns entire domain of an email, e.g. "bob@sub.myorg.com" => "sub.myorg.com"
     function fullDomain(email) {
         if (!email) return "";
         const m = email.toLowerCase().match(/@([a-z0-9.\-]+)/);
         return m ? m[1] : "";
     }
 
+    // baseDom approach for external checks
     function dom(a) {
         return a?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})$/)?.[1]?.toLowerCase() || null;
     }
@@ -574,47 +547,19 @@
         return d1.trim().toLowerCase() === d2.trim().toLowerCase();
     }
 
-    // Reuse the existing "truncateText" for files, etc.
     function truncateText(txt, isFile = false, max = 48) {
         if (!txt) return "";
         if (txt.length <= max) return escapeHtml(txt);
         const ell = escapeHtml(txt.slice(0, max - 1) + "…");
         return `<span class="truncate" title="${escapeHtml(txt)}">${ell}</span>`;
     }
-
     function escapeHtml(s) {
         return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
     }
-
-    /* ---------- NEW: WRAPPED vs. TRUNCATED ADDRESSES ---------- */
-
-    // "formatAddrWrapped": uses normal wrapping, no ellipsis, with copy icon
-    function formatAddrWrapped(a) {
-        if (!a) return "";
-        const full = `${a.displayName} <${a.emailAddress}>`;
-        // use normal wrapping
-        return `<span style="white-space:normal; display:inline-block;">${escapeHtml(full)}</span>
-                <span class="copy-addr" data-full="${escapeHtml(full)}" style="cursor:pointer; margin-left:6px;">📋</span>`;
+    function formatAddr(a) {
+        return `${a.displayName} &lt;${a.emailAddress}&gt;`;
     }
-    function formatAddrsWrapped(arr) {
-        if (!arr || !arr.length) return "None";
-        return arr.map(a => formatAddrWrapped(a)).join("<br/>");
-    }
-
-    // "formatAddrTruncated": uses custom tooltip + ellipsis
-    function formatAddrTruncated(a) {
-        if (!a) return "";
-        const full = `${a.displayName} <${a.emailAddress}>`;
-        // We'll add .has-tooltip with data-tooltip for a custom tooltip.
-        // Also add .truncate for ellipsis, using a fixed width if you prefer.
-        return `<span class="truncate has-tooltip" style="max-width:200px; display:inline-block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
-                     data-tooltip="${escapeHtml(full)}">
-                    ${escapeHtml(full)}
-                </span>
-                <span class="copy-addr" data-full="${escapeHtml(full)}" style="cursor:pointer; margin-left:6px;">📋</span>`;
-    }
-    function formatAddrsTruncated(arr) {
-        if (!arr || !arr.length) return "None";
-        return arr.map(a => formatAddrTruncated(a)).join("<br/>");
+    function formatAddrs(arr) {
+        return arr?.length ? arr.map(formatAddr).join("<br/>") : "None";
     }
 })();
