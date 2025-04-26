@@ -1,8 +1,8 @@
-﻿/* MessageRead.js – v46
-   Builds on v45 with one addition:
-   • Adds a new check for “Proofpoint v3/__https://” syntax, so we properly decode
-     links like https://urldefense.com/v3/__https://www.sce.com/...
-   Everything else from v45 is unchanged, preserving all prior functionality.
+﻿/* MessageRead.js – v47
+   Builds on v46 with a UX improvement for long email addresses:
+   • In formatAddr() and formatAddrs(), we now wrap the full string in a <span class="truncate">
+     plus a fixed max-width style, giving an ellipsis + a hover tooltip of the full address.
+   All other code remains unchanged.
 */
 
 (function () {
@@ -20,83 +20,60 @@
 
     // A large set of reputable-company domains for domain-based verification:
     const verifiedDomains = new Set([
-        // 1. E-commerce Market Leaders (20)
-        "amazon.com", "ebay.com", "alibaba.com", "aliexpress.com", "jd.com", "walmart.com", "target.com", "rakuten.com", "mercadolibre.com", "flipkart.com", "overstock.com", "etsy.com", "groupon.com", "wayfair.com", "zappos.com", "shein.com", "gearbest.com", "banggood.com", "tmall.com", "shopify.com",
-
-        // 2. Large Retailers & Department Stores (20)
-        "costco.com", "kohls.com", "bestbuy.com", "macys.com", "nordstrom.com", "bloomingdales.com", "dillards.com", "jcpenney.com", "sears.com", "neimanmarcus.com", "saksfifthavenue.com", "meijer.com", "biglots.com", "rossstores.com", "tjmaxx.com", "marshalls.com", "burlington.com", "dollargeneral.com", "familydollar.com", "bedbathandbeyond.com",
-
-        // 3. Fashion & Apparel (20)
-        "gap.com", "oldnavy.com", "bananarepublic.com", "uniqlo.com", "hm.com", "zara.com", "forever21.com", "asos.com", "revolve.com", "urbanoutfitters.com", "freepeople.com", "anthropologie.com", "abercrombie.com", "hollisterco.com", "fashionnova.com", "victoriassecret.com", "adidas.com", "nike.com", "underarmour.com", "lululemon.com",
-
-        // 4. Technology & Software (20)
-        "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com", "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com", "gitlab.com", "atlassian.com",
-
+        // (same verifiedDomains array as v46)
+        "amazon.com", "ebay.com", "alibaba.com", "aliexpress.com", "jd.com", "walmart.com", "target.com", "rakuten.com", "mercadolibre.com", "flipkart.com",
+        "overstock.com", "etsy.com", "groupon.com", "wayfair.com", "zappos.com", "shein.com", "gearbest.com", "banggood.com", "tmall.com", "shopify.com",
+        "costco.com", "kohls.com", "bestbuy.com", "macys.com", "nordstrom.com", "bloomingdales.com", "dillards.com", "jcpenney.com", "sears.com",
+        "neimanmarcus.com", "saksfifthavenue.com", "meijer.com", "biglots.com", "rossstores.com", "tjmaxx.com", "marshalls.com", "burlington.com", "dollargeneral.com",
+        "familydollar.com", "bedbathandbeyond.com", "gap.com", "oldnavy.com", "bananarepublic.com", "uniqlo.com", "hm.com", "zara.com", "forever21.com", "asos.com",
+        "revolve.com", "urbanoutfitters.com", "freepeople.com", "anthropologie.com", "abercrombie.com", "hollisterco.com", "fashionnova.com", "victoriassecret.com",
+        "adidas.com", "nike.com", "underarmour.com", "lululemon.com", "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com",
+        "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com",
+        "gitlab.com", "atlassian.com",
         /* Inserted here: "kaseya.net" */
         "kaseya.net",
-
-        // 5. Electronics & Hardware (20)
-        "samsung.com", "lg.com", "sony.com", "panasonic.com", "philips.com", "sharpusa.com", "huawei.com", "xiaomi.com", "oneplus.com", "realme.com", "oppo.com", "vivo.com", "toshiba.com", "pioneer.com", "jvc.com", "canon.com", "nikon.com", "epson.com", "fujifilm.com", "bose.com",
-
-        // 6. Payment & Financial Services (20)
-        "paypal.com", "stripe.com", "squareup.com", "venmo.com", "skrill.com", "payoneer.com", "wepay.com", "adyen.com", "authorize.net", "alipay.com", "neteller.com", "googlepay.com", "amazonpay.com", "worldpay.com", "firstdata.com", "payu.com", "bill.com", "intuit.com", "xero.com", "coinbase.com",
-
-        // 7. Banks & Lending (20)
-        "chase.com", "wellsfargo.com", "bankofamerica.com", "citi.com", "usbank.com", "pnc.com", "truist.com", "capitalone.com", "americanexpress.com", "discover.com", "goldmansachs.com", "barclays.com", "hsbc.com", "lloydsbank.com", "rbs.co.uk", "santander.com", "bbva.com", "bnymellon.com", "sofi.com", "ally.com",
-
-        // 8. Insurance (20)
-        "geico.com", "progressive.com", "allstate.com", "statefarm.com", "farmers.com", "usaa.com", "libertymutual.com", "nationwide.com", "travelers.com", "chubb.com", "zurichna.com", "thehartford.com", "metlife.com", "prudential.com", "aetna.com", "cigna.com", "humana.com", "aflac.com", "coloniallife.com", "globelife.com",
-
-        // 9. Healthcare & Pharma (20)
-        "pfizer.com", "moderna.com", "johnsonandjohnson.com", "merck.com", "astrazeneca.com", "novartis.com", "roche.com", "gsk.com", "sanofi.com", "abbvie.com", "bristolmyerssquibb.com", "lilly.com", "bayer.com", "amgen.com", "teva.com", "viatris.com", "regeneron.com", "cardinalhealth.com", "mckesson.com", "abbott.com",
-
-        // 10. Telecom & ISPs (20)
-        "att.com", "verizon.com", "t-mobile.com", "sprint.com", "xfinity.com", "comcast.com", "charter.com", "spectrum.com", "centurylink.com", "frontier.com", "bt.com", "vodafone.com", "orange.com", "telefonica.com", "rogers.com", "bell.ca", "telus.com", "telstra.com", "mtn.com", "uscellular.com",
-
-        // 11. Social Media & Networking (20)
-        "facebook.com", "instagram.com", "twitter.com", "linkedin.com", "snapchat.com", "pinterest.com", "tiktok.com", "reddit.com", "tumblr.com", "weibo.com", "wechat.com", "discord.com", "quora.com", "meetup.com", "xing.com", "vk.com", "flickr.com", "behance.net", "deviantart.com", "medium.com",
-
-        // 12. Internet & Tech Giants (20)
-        "baidu.com", "yandex.com", "cloudflare.com", "akamai.com", "digitalocean.com", "rackspace.com", "godaddy.com", "namecheap.com", "wordpress.com", "squarespace.com", "weebly.com", "wix.com", "bigcommerce.com", "mailchimp.com", "hubspot.com", "constantcontact.com", "webex.com", "cisco.com", "github.com", "tencent.com",
-
-        // 13. Travel Sites (20)
-        "booking.com", "expedia.com", "tripadvisor.com", "orbitz.com", "travelocity.com", "priceline.com", "kayak.com", "skyscanner.com", "trivago.com", "hotwire.com", "hopper.com", "agoda.com", "cheapoair.com", "ebookers.com", "cheapair.com", "airfarewatchdog.com", "lastminute.com", "travelzoo.com", "travelgenio.com", "momondo.com",
-
-        // 14. Airlines (20)
-        "delta.com", "united.com", "southwest.com", "american.com", "aa.com", "alaskaair.com", "jetblue.com", "spirit.com", "hawaiianairlines.com", "allegiantair.com", "britishairways.com", "lufthansa.com", "airfrance.com", "klm.com", "emirates.com", "qatarairways.com", "etihad.com", "cathaypacific.com", "singaporeair.com", "aerlingus.com",
-
-        // 15. Hotels & Accommodation (20)
-        "marriott.com", "hilton.com", "hyatt.com", "ihg.com", "choicehotels.com", "wyndhamhotels.com", "accor.com", "ritzcarlton.com", "fourseasons.com", "fairmont.com", "starwoodhotels.com", "mgmresorts.com", "wynnresorts.com", "hostels.com", "motel6.com", "bestwestern.com", "radissonhotels.com", "scandichotels.com", "oyorooms.com", "airbnb.com",
-
-        // 16. Car Rentals & Transportation (20)
-        "hertz.com", "avis.com", "budget.com", "enterprise.com", "alamo.com", "nationalcar.com", "thrifty.com", "dollar.com", "sixt.com", "uhaul.com", "pensketruckrental.com", "lyft.com", "uber.com", "grab.com", "bolt.eu", "cabify.com", "lime.me", "bird.co", "spin.app", "turo.com",
-
-        // 17. Food & Beverage (20)
-        "starbucks.com", "dunkindonuts.com", "mcdonalds.com", "burgerking.com", "wendys.com", "tacobell.com", "pizzahut.com", "dominos.com", "papajohns.com", "chipotle.com", "panerabread.com", "chick-fil-a.com", "kfc.com", "subway.com", "fiveguys.com", "sonicdrivein.com", "arbys.com", "dairyqueen.com", "littlecaesars.com", "jimmyjohns.com",
-
-        // 18. Logistics & Shipping (20)
-        "ups.com", "fedex.com", "dhl.com", "usps.com", "canadapost.ca", "royalmail.com", "parcelforce.com", "hermesworld.com", "dpd.com", "tnt.com", "aramex.com", "gls-group.eu", "yamato-hd.co.jp", "japanpost.jp", "laposte.fr", "upsupplychain.com", "fedexcustomcritical.com", "dhlglobalforwarding.com", "ontrac.com", "yrc.com",
-
-        // 19. Media & Entertainment (20)
-        "netflix.com", "hulu.com", "disneyplus.com", "hbo.com", "showtime.com", "paramountplus.com", "peacocktv.com", "discoveryplus.com", "espn.com", "fox.com", "abc.com", "nbc.com", "cbs.com", "bbc.co.uk", "cnn.com", "bloomberg.com", "reuters.com", "theguardian.com", "nytimes.com", "wsj.com",
-
-        // 20. Automotive (20)
-        "ford.com", "gm.com", "chevrolet.com", "toyota.com", "honda.com", "nissanusa.com", "hyundaiusa.com", "kia.com", "tesla.com", "bmw.com", "mercedes-benz.com", "audi.com", "volkswagen.com", "porsche.com", "volvo.com", "subaru.com", "mazdausa.com", "dodge.com", "jeep.com", "ramtrucks.com",
-
-        // 21. Education (20)
-        "harvard.edu", "mit.edu", "stanford.edu", "berkeley.edu", "ox.ac.uk", "cam.ac.uk", "yale.edu", "princeton.edu", "columbia.edu", "ucla.edu", "nyu.edu", "upenn.edu", "caltech.edu", "cmu.edu", "gatech.edu", "uf.edu", "umich.edu", "k12.com", "coursera.org", "edx.org",
-
-        // 22. Nonprofits & International Orgs (20)
-        "un.org", "who.int", "worldbank.org", "imf.org", "wto.org", "unesco.org", "unicef.org", "redcross.org", "salvationarmy.org", "unitedway.org", "habitat.org", "wwf.org", "greenpeace.org", "amnesty.org", "doctorswithoutborders.org", "care.org", "oxfam.org", "mercycorps.org", "charitywater.org", "worldvision.org",
-
-        // 23. Government & Public Services (20)
-        "usa.gov", "irs.gov", "ssa.gov", "nps.gov", "nasa.gov", "gov.uk", "canada.ca", "australia.gov.au", "india.gov.in", "gov.cn", "europa.eu", "whitehouse.gov", "senate.gov", "house.gov", "justice.gov", "ny.gov", "ca.gov", "gov.za", "scot.gov", "uscis.gov",
-
-        // 24. Manufacturing & Industrial (20)
-        "caterpillar.com", "johnsoncontrols.com", "3m.com", "honeywell.com", "siemens.com", "ge.com", "emerson.com", "schneider-electric.com", "rockwellautomation.com", "abb.com", "bosch.com", "hitachihightech.com", "daikin.com", "cummins.com", "whirlpoolcorp.com", "jcb.com", "doosan.com", "yamaha-motor.com", "unitedtechnologies.com", "raytheon.com",
-
-        // 25. Real Estate (20)
-        "zillow.com", "realtor.com", "redfin.com", "trulia.com", "homes.com", "remax.com", "century21.com", "coldwellbanker.com", "kw.com", "sothebysrealty.com", "compass.com", "corcoran.com", "zillowgroup.com", "loopnet.com", "officespace.com", "costar.com", "cushmanwakefield.com", "jll.com", "savills.com", "colliers.com"
+        "samsung.com", "lg.com", "sony.com", "panasonic.com", "philips.com", "sharpusa.com", "huawei.com", "xiaomi.com", "oneplus.com", "realme.com",
+        "oppo.com", "vivo.com", "toshiba.com", "pioneer.com", "jvc.com", "canon.com", "nikon.com", "epson.com", "fujifilm.com", "bose.com",
+        "paypal.com", "stripe.com", "squareup.com", "venmo.com", "skrill.com", "payoneer.com", "wepay.com", "adyen.com", "authorize.net", "alipay.com",
+        "neteller.com", "googlepay.com", "amazonpay.com", "worldpay.com", "firstdata.com", "payu.com", "bill.com", "intuit.com", "xero.com", "coinbase.com",
+        "chase.com", "wellsfargo.com", "bankofamerica.com", "citi.com", "usbank.com", "pnc.com", "truist.com", "capitalone.com", "americanexpress.com",
+        "discover.com", "goldmansachs.com", "barclays.com", "hsbc.com", "lloydsbank.com", "rbs.co.uk", "santander.com", "bbva.com", "bnymellon.com", "sofi.com",
+        "ally.com", "geico.com", "progressive.com", "allstate.com", "statefarm.com", "farmers.com", "usaa.com", "libertymutual.com", "nationwide.com", "travelers.com",
+        "chubb.com", "zurichna.com", "thehartford.com", "metlife.com", "prudential.com", "aetna.com", "cigna.com", "humana.com", "aflac.com", "coloniallife.com",
+        "globelife.com", "pfizer.com", "moderna.com", "johnsonandjohnson.com", "merck.com", "astrazeneca.com", "novartis.com", "roche.com", "gsk.com", "sanofi.com",
+        "abbvie.com", "bristolmyerssquibb.com", "lilly.com", "bayer.com", "amgen.com", "teva.com", "viatris.com", "regeneron.com", "cardinalhealth.com", "mckesson.com",
+        "abbott.com", "att.com", "verizon.com", "t-mobile.com", "sprint.com", "xfinity.com", "comcast.com", "charter.com", "spectrum.com", "centurylink.com",
+        "frontier.com", "bt.com", "vodafone.com", "orange.com", "telefonica.com", "rogers.com", "bell.ca", "telus.com", "telstra.com", "mtn.com", "uscellular.com",
+        "facebook.com", "instagram.com", "twitter.com", "linkedin.com", "snapchat.com", "pinterest.com", "tiktok.com", "reddit.com", "tumblr.com", "weibo.com",
+        "wechat.com", "discord.com", "quora.com", "meetup.com", "xing.com", "vk.com", "flickr.com", "behance.net", "deviantart.com", "medium.com",
+        "baidu.com", "yandex.com", "cloudflare.com", "akamai.com", "digitalocean.com", "rackspace.com", "godaddy.com", "namecheap.com", "wordpress.com",
+        "squarespace.com", "weebly.com", "wix.com", "bigcommerce.com", "mailchimp.com", "hubspot.com", "constantcontact.com", "webex.com", "cisco.com", "github.com",
+        "tencent.com", "booking.com", "expedia.com", "tripadvisor.com", "orbitz.com", "travelocity.com", "priceline.com", "kayak.com", "skyscanner.com", "trivago.com",
+        "hotwire.com", "hopper.com", "agoda.com", "cheapoair.com", "ebookers.com", "cheapair.com", "airfarewatchdog.com", "lastminute.com", "travelzoo.com",
+        "travelgenio.com", "momondo.com", "delta.com", "united.com", "southwest.com", "american.com", "aa.com", "alaskaair.com", "jetblue.com", "spirit.com",
+        "hawaiianairlines.com", "allegiantair.com", "britishairways.com", "lufthansa.com", "airfrance.com", "klm.com", "emirates.com", "qatarairways.com", "etihad.com",
+        "cathaypacific.com", "singaporeair.com", "aerlingus.com", "marriott.com", "hilton.com", "hyatt.com", "ihg.com", "choicehotels.com", "wyndhamhotels.com",
+        "accor.com", "ritzcarlton.com", "fourseasons.com", "fairmont.com", "starwoodhotels.com", "mgmresorts.com", "wynnresorts.com", "hostels.com", "motel6.com",
+        "bestwestern.com", "radissonhotels.com", "scandichotels.com", "oyorooms.com", "airbnb.com", "hertz.com", "avis.com", "budget.com", "enterprise.com",
+        "alamo.com", "nationalcar.com", "thrifty.com", "dollar.com", "sixt.com", "uhaul.com", "pensketruckrental.com", "lyft.com", "uber.com", "grab.com",
+        "bolt.eu", "cabify.com", "lime.me", "bird.co", "spin.app", "turo.com", "starbucks.com", "dunkindonuts.com", "mcdonalds.com", "burgerking.com", "wendys.com",
+        "tacobell.com", "pizzahut.com", "dominos.com", "papajohns.com", "chipotle.com", "panerabread.com", "chick-fil-a.com", "kfc.com", "subway.com", "fiveguys.com",
+        "sonicdrivein.com", "arbys.com", "dairyqueen.com", "littlecaesars.com", "jimmyjohns.com", "ups.com", "fedex.com", "dhl.com", "usps.com", "canadapost.ca",
+        "royalmail.com", "parcelforce.com", "hermesworld.com", "dpd.com", "tnt.com", "aramex.com", "gls-group.eu", "yamato-hd.co.jp", "japanpost.jp", "laposte.fr",
+        "upsupplychain.com", "fedexcustomcritical.com", "dhlglobalforwarding.com", "ontrac.com", "yrc.com", "netflix.com", "hulu.com", "disneyplus.com", "hbo.com",
+        "showtime.com", "paramountplus.com", "peacocktv.com", "discoveryplus.com", "espn.com", "fox.com", "abc.com", "nbc.com", "cbs.com", "bbc.co.uk", "cnn.com",
+        "bloomberg.com", "reuters.com", "theguardian.com", "nytimes.com", "wsj.com", "ford.com", "gm.com", "chevrolet.com", "toyota.com", "honda.com", "nissanusa.com",
+        "hyundaiusa.com", "kia.com", "tesla.com", "bmw.com", "mercedes-benz.com", "audi.com", "volkswagen.com", "porsche.com", "volvo.com", "subaru.com", "mazdausa.com",
+        "dodge.com", "jeep.com", "ramtrucks.com", "harvard.edu", "mit.edu", "stanford.edu", "berkeley.edu", "ox.ac.uk", "cam.ac.uk", "yale.edu", "princeton.edu",
+        "columbia.edu", "ucla.edu", "nyu.edu", "upenn.edu", "caltech.edu", "cmu.edu", "gatech.edu", "uf.edu", "umich.edu", "k12.com", "coursera.org", "edx.org",
+        "un.org", "who.int", "worldbank.org", "imf.org", "wto.org", "unesco.org", "unicef.org", "redcross.org", "salvationarmy.org", "unitedway.org", "habitat.org",
+        "wwf.org", "greenpeace.org", "amnesty.org", "doctorswithoutborders.org", "care.org", "oxfam.org", "mercycorps.org", "charitywater.org", "worldvision.org",
+        "usa.gov", "irs.gov", "ssa.gov", "nps.gov", "nasa.gov", "gov.uk", "canada.ca", "australia.gov.au", "india.gov.in", "gov.cn", "europa.eu", "whitehouse.gov",
+        "senate.gov", "house.gov", "justice.gov", "ny.gov", "ca.gov", "gov.za", "scot.gov", "uscis.gov", "caterpillar.com", "johnsoncontrols.com", "3m.com",
+        "honeywell.com", "siemens.com", "ge.com", "emerson.com", "schneider-electric.com", "rockwellautomation.com", "abb.com", "bosch.com", "hitachihightech.com",
+        "daikin.com", "cummins.com", "whirlpoolcorp.com", "jcb.com", "doosan.com", "yamaha-motor.com", "unitedtechnologies.com", "raytheon.com", "zillow.com",
+        "realtor.com", "redfin.com", "trulia.com", "homes.com", "remax.com", "century21.com", "coldwellbanker.com", "kw.com", "sothebysrealty.com", "compass.com",
+        "corcoran.com", "zillowgroup.com", "loopnet.com", "officespace.com", "costar.com", "cushmanwakefield.com", "jll.com", "savills.com", "colliers.com"
     ]);
 
     const personalDomains = new Set([
@@ -114,7 +91,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v46";
+    window._identifyEmailVersion = "v47";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -164,7 +141,6 @@
         const it = Office.context.mailbox.item;
         if (!it) return;
 
-        // track user domain globally
         window.__userDomain = fullDomain(Office.context.mailbox.userProfile.emailAddress);
         window.__internalSenderTrusted = false;
 
@@ -237,7 +213,6 @@
         $("#internetMessageId").html(truncateText(it.internetMessageId));
         $("#normalizedSubject").text(it.normalizedSubject);
 
-        // Original order: classification -> checkAuth -> mismatch
         senderClassification(it);
         checkAuthHeaders(it);
         fromSenderMismatch(it);
@@ -275,21 +250,14 @@
                 cb([]);
                 return;
             }
-            // Find all potential URLs in the plain-text body
             const matches = r.value.match(/https?:\/\/[^\s"'<>]+/gi) || [];
-
-            // v45 new: decode each link if it's a known wrapper (Safe Links, Proofpoint, etc.)
             const decoded = matches.map(u => decodeUrlWrappers(u));
-
-            // unique set, limit 200
             cb([...new Set(decoded)].slice(0, 200));
         });
     }
 
-    // v45/v46: function to decode known link wrappers
     function decodeUrlWrappers(originalUrl) {
         let url = originalUrl.trim();
-
         try {
             const lower = url.toLowerCase();
 
@@ -306,20 +274,16 @@
             if (lower.includes("urldefense.proofpoint.com") && lower.includes("?u=")) {
                 const match = url.match(/[?&]u=([^&]+)/i);
                 if (match && match[1]) {
-                    let decodedParam = match[1];
-                    decodedParam = decodedParam.replace(/-/g, '%');
+                    let decodedParam = match[1].replace(/-/g, '%');
                     try {
                         decodedParam = decodeURIComponent(decodedParam);
                         return decodedParam.trim() || originalUrl;
-                    } catch {
-                        // fallback
-                    }
+                    } catch { }
                 }
             }
 
-            // 2b) Proofpoint v3 "v3/__" pattern
+            // 2b) Proofpoint v3
             if (lower.includes("urldefense.com/v3/__https://")) {
-                // e.g. https://urldefense.com/v3/__https://www.sce.com/...
                 const match = url.match(/\/v3\/__https?:\/\/(.+)/i);
                 if (match && match[1]) {
                     return "https://" + match[1];
@@ -335,7 +299,7 @@
                 }
             }
 
-            // 4) aka.ms / MS learn links
+            // 4) aka.ms / MS learn
             if ((lower.includes("aka.ms/") || lower.includes("learn.microsoft.com")) && (lower.includes("targeturl=") || lower.includes("target="))) {
                 const match = url.match(/[?&](?:targeturl|target)=([^&]+)/i);
                 if (match && match[1]) {
@@ -344,7 +308,6 @@
                 }
             }
 
-            // if none matched
             return originalUrl;
         } catch {
             return originalUrl;
@@ -476,7 +439,6 @@
             } else {
                 console.log("DEBUG => Not marking as internal trust. Check conditions above.");
 
-                // fallback logic for purely internal with no SPF/DKIM/DMARC
                 const noAuthData =
                     (!spf || spf === "none" || spf === "null") &&
                     (!dkim || dkim === "none") &&
@@ -495,7 +457,6 @@
                 }
             }
 
-            // re-run classification & mismatch so UI updates
             senderClassification(it);
             fromSenderMismatch(it);
         });
@@ -521,14 +482,12 @@
         return match ? match[1] : null;
     }
 
-    // Returns entire domain of an email, e.g. "bob@sub.myorg.com" => "sub.myorg.com"
     function fullDomain(email) {
         if (!email) return "";
         const m = email.toLowerCase().match(/@([a-z0-9.\-]+)/);
         return m ? m[1] : "";
     }
 
-    // baseDom approach for external checks
     function dom(a) {
         return a?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})$/)?.[1]?.toLowerCase() || null;
     }
@@ -547,6 +506,22 @@
         return d1.trim().toLowerCase() === d2.trim().toLowerCase();
     }
 
+    // ---- UPDATED to truncate with a tooltip ----
+    function formatAddr(a) {
+        if (!a) return "";
+        const full = `${a.displayName} <${a.emailAddress}>`;
+        // We wrap the entire address in a span.truncate with a fixed max-width and a title attribute.
+        return `<span class="truncate" style="max-width:220px; display:inline-block;" title="${escapeHtml(full)}">${escapeHtml(full)}</span>`;
+    }
+
+    // Also updated to apply the same approach for each address.
+    function formatAddrs(arr) {
+        if (!arr || !arr.length) return "None";
+        // Use formatAddr for each item, then join them with <br/>
+        return arr.map(a => formatAddr(a)).join("<br/>");
+    }
+
+    // keep existing:
     function truncateText(txt, isFile = false, max = 48) {
         if (!txt) return "";
         if (txt.length <= max) return escapeHtml(txt);
@@ -555,11 +530,5 @@
     }
     function escapeHtml(s) {
         return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
-    }
-    function formatAddr(a) {
-        return `${a.displayName} &lt;${a.emailAddress}&gt;`;
-    }
-    function formatAddrs(arr) {
-        return arr?.length ? arr.map(formatAddr).join("<br/>") : "None";
     }
 })();
