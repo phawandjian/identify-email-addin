@@ -467,7 +467,27 @@
             const lines = hdr.split(/\r?\n/);
 
             let spf, dkim, dmarc, envDom = null, dkimDom = null;
-            // … (parsing code unchanged) …
+            lines.forEach(l => {
+                const low = l.toLowerCase();
+                if (low.includes("authentication-results:") || low.includes("arc-authentication-results:")) {
+                    spf ??= val(low, "spf=");
+                    dkim ??= val(low, "dkim=");
+                    dmarc ??= val(low, "dmarc=");
+                    if (low.includes("smtp.mailfrom=")) {
+                        const m = low.match(/smtp\.mailfrom=([^;\s]+)/);
+                        if (m) envDom = baseDom(dom(m[1]));
+                    }
+                }
+                if (low.startsWith("return-path:")) {
+                    const m = l.match(/<([^>]+)>/);
+                    if (m) envDom = baseDom(dom(m[1]));
+                }
+                if (low.startsWith("dkim-signature:") && !dkimDom) {
+                    const mm = l.match(/\bd=([^;]+)/i);
+                    if (mm) dkimDom = baseDom(mm[1].trim().toLowerCase());
+                }
+            });
+
 
             /* ---------- new, more-prominent SPF UI ---------- */
             const $auth = $("#authContainer").empty();                 // clear any previous content
