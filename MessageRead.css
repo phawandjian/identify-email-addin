@@ -1,7 +1,8 @@
 ﻿/* =========================================================
-   MessageRead.css – v15
-   • .truncate class for graceful ellipsis (dark‑mode aware)
-   • Retains badge & dark‑mode fix from prior version
+   MessageRead.css – v16
+   • Introduced a new “warn” color (#FFA726) for N/A/none
+   • Tweaked the fail color to #E53935 (a softer red)
+   • Polished the auth-summary styling for a more professional look
    ========================================================= */
 
 :root {
@@ -12,7 +13,8 @@
     --text: #000;
     --text-sub: #333;
     --badge-ok: #15c75c;
-    --badge-bad: #ff5252;
+    --badge-fail: #e53935; /* updated from #ff5252 to reduce clash */
+    --badge-warn: #ffa726; /* new: an orange for N/A or none */
     --banner-bg: rgba(255,255,255,.26);
 }
 
@@ -142,7 +144,7 @@ html, body {
         opacity: .85;
     }
 
-/* collapsible helpers: updated arrow rotation */
+/* collapsible */
 .collapsible .section-title {
     cursor: pointer;
 }
@@ -178,7 +180,7 @@ html, body {
 }
 
 .badge-unverified {
-    background: var(--badge-bad);
+    background: var(--badge-fail);
 }
 
 .badge-personal {
@@ -189,22 +191,29 @@ html, body {
     background: #4fc3f7;
 }
 
-/* 💡 NEW: dedicated colours for SPF result */
+/* SPF, DKIM, DMARC pass/fail/warn */
 .badge-spf-pass {
     background: var(--badge-ok);
 }
 
 .badge-spf-fail {
-    background: var(--badge-bad);
+    background: var(--badge-fail);
 }
 
-/* ADDED: DKIM and DMARC pass/fail classes */
+.badge-spf-warn {
+    background: var(--badge-warn);
+}
+
 .badge-dkim-pass {
     background: var(--badge-ok);
 }
 
 .badge-dkim-fail {
-    background: var(--badge-bad);
+    background: var(--badge-fail);
+}
+
+.badge-dkim-warn {
+    background: var(--badge-warn);
 }
 
 .badge-dmarc-pass {
@@ -212,7 +221,11 @@ html, body {
 }
 
 .badge-dmarc-fail {
-    background: var(--badge-bad);
+    background: var(--badge-fail);
+}
+
+.badge-dmarc-warn {
+    background: var(--badge-warn);
 }
 
 .inline-badge {
@@ -232,9 +245,9 @@ html, body {
     gap: 4px;
 }
 
-/* auth-summary spacing for clarity */
 .auth-summary {
-    margin-top: 6px; /* slightly separated from badges */
+    margin-top: 6px;
+    font-size: 13px;
 }
 
 .auth-pass {
@@ -242,7 +255,7 @@ html, body {
 }
 
 .auth-fail {
-    color: var(--badge-bad);
+    color: var(--badge-fail);
 }
 
 /* ellipsis truncate */
