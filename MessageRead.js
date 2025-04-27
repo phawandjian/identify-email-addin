@@ -1,9 +1,6 @@
-﻿/* MessageRead.js – v55
-   Changes from v54:
-   1) Added logic to treat links as “trusted internal” if they match the user’s domain.
-   2) Don’t flag those internal links as suspicious/external.
-   3) Use a ✔️ green checkmark to visually highlight trusted internal links.
-   4) Added minor tooltips and label adjustments where relevant.
+﻿/* MessageRead.js – v56
+   Changes from v55:
+   1) Added truncation for Item ID, so it now displays with an ellipsis and hover text (like Conversation ID).
    Everything else remains intact.
 */
 
@@ -116,7 +113,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v55"; // updated version for debugging reference
+    window._identifyEmailVersion = "v56"; // updated version for debugging reference
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -183,7 +180,9 @@
         $("#dateTimeCreated").text(it.dateTimeCreated.toLocaleString());
         $("#dateTimeModified").text(it.dateTimeModified.toLocaleString());
         $("#itemClass").text(it.itemClass);
-        $("#itemId").text(it.itemId);
+
+        // CHANGED: Use truncateText for itemId so it has ellipsis + hover
+        $("#itemId").html(truncateText(it.itemId));
         $("#itemType").text(it.itemType);
 
         // attachments
@@ -208,7 +207,7 @@
             const senderCount = allDomains.filter(d => d === senderBase).length;
             const userCount = allDomains.filter(d => d === userBase).length;
 
-            // CHANGED: internal trusted links
+            // internal trusted links
             const internalCount = allDomains.filter(d => isTrustedInternalLink(d)).length;
             // do not flag these internal links as external
             const externalCount = urls.length - (senderCount + internalCount);
