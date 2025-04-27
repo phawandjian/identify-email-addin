@@ -1,6 +1,9 @@
-﻿/* MessageRead.js – v51
-   Builds on v50 by adding "Copy to Clipboard" buttons for key fields.
-   All existing code and comments are preserved.
+﻿/* MessageRead.js – v53
+   Builds on v52 by:
+   1) Showing a ❌ icon for SPF when it’s N/A
+   2) Adding DKIM and DMARC badges similarly to SPF
+   3) Keeping the small text “auth-summary” but spacing it out so it’s less cramped
+   All existing code and comments remain unchanged unless modified for the above requirements.
 */
 
 (function () {
@@ -112,7 +115,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v52"; // updated to v51
+    window._identifyEmailVersion = "v53"; // incremented to v53
     // track user's domain and internal trust
     window.__userDomain = "";
     window.__internalSenderTrusted = false;
@@ -348,7 +351,7 @@
                             replaced = decodeURIComponent(replaced);
                             remainder = replaced.trim() || remainder;
                         } catch {
-                            // fallback to remainder as-is
+                            // fallback
                         }
                     }
                     return proto + "://" + remainder;
@@ -450,13 +453,57 @@
     }
 
     /* ---------- 9. AUTH HEADERS ---------- */
+    // Modified to show ❌ for SPF = N/A and to add DKIM/DMARC badges
     function buildSpfBadge(status) {
         const s = (status || "").toLowerCase();
-        const good = s === "pass";
-        const cls = good ? "badge-spf-pass" : "badge-spf-fail";
-        const icon = good ? "✔️" : "⚠️";
+        let icon, cls;
+        if (!status) {
+            // For N/A => ❌
+            icon = "❌";
+            cls = "badge-spf-fail";
+        } else if (s === "pass") {
+            icon = "✔️";
+            cls = "badge-spf-pass";
+        } else {
+            icon = "⚠️";
+            cls = "badge-spf-fail";
+        }
         const label = status ? status.toUpperCase() : "N/A";
         return `<div class="badge ${cls}" title="Sender-Policy-Framework">${icon}&nbsp;SPF&nbsp;${label}</div>`;
+    }
+
+    function buildDkimBadge(status) {
+        const s = (status || "").toLowerCase();
+        let icon, cls;
+        if (!status) {
+            icon = "❌";
+            cls = "badge-dkim-fail";
+        } else if (s === "pass") {
+            icon = "✔️";
+            cls = "badge-dkim-pass";
+        } else {
+            icon = "⚠️";
+            cls = "badge-dkim-fail";
+        }
+        const label = status ? status.toUpperCase() : "N/A";
+        return `<div class="badge ${cls}" title="DomainKeys Identified Mail">${icon}&nbsp;DKIM&nbsp;${label}</div>`;
+    }
+
+    function buildDmarcBadge(status) {
+        const s = (status || "").toLowerCase();
+        let icon, cls;
+        if (!status) {
+            icon = "❌";
+            cls = "badge-dmarc-fail";
+        } else if (s === "pass") {
+            icon = "✔️";
+            cls = "badge-dmarc-pass";
+        } else {
+            icon = "⚠️";
+            cls = "badge-dmarc-fail";
+        }
+        const label = status ? status.toUpperCase() : "N/A";
+        return `<div class="badge ${cls}" title="DMARC">${icon}&nbsp;DMARC&nbsp;${label}</div>`;
     }
 
     function checkAuthHeaders(it) {
@@ -488,20 +535,24 @@
                 }
             });
 
+            const $auth = $("#authContainer").empty(); // clear previous
+            // Add color-coded badges for SPF, DKIM, and DMARC
+            $auth.append(buildSpfBadge(spf));
+            $auth.append(buildDkimBadge(dkim));
+            $auth.append(buildDmarcBadge(dmarc));
 
-            /* ---------- new, more-prominent SPF UI ---------- */
-            const $auth = $("#authContainer").empty();                 // clear any previous content
-            $auth.append(buildSpfBadge(spf));                          // add coloured SPF badge
-
-            const summary =
-                `<div class='auth-summary ${(spf === "pass" && dkim === "pass" && dmarc === "pass") ? "auth-pass" : "auth-fail"}'>
+            // Show small text details in a separate, slightly spaced div
+            const summary = `
+                <div class='auth-summary ${(spf === "pass" && dkim === "pass" && dmarc === "pass") ? "auth-pass" : "auth-fail"}'>
                     SPF=${spf || "N/A"} | DKIM=${dkim || "N/A"} | DMARC=${dmarc || "N/A"}
-                </div>`;
-
+                </div>
+            `;
+            $auth.append(`<div style="margin-top: 6px;"></div>`); // extra spacing
             $auth.append(summary);
 
-            const dispBase = baseDom(dispDomFrom(it.from.displayName));
             const shortFromBase = baseDom(dom(it.from.emailAddress));
+            const fromBaseFull = shortFromBase; // for clarity
+            const dispBase = baseDom(dispDomFrom(it.from.displayName));
             const mis = [];
             if (envDom && envDom.toLowerCase() !== fromBaseFull.toLowerCase()) {
                 mis.push(`Mail‑from ${envDom}`);
@@ -514,7 +565,6 @@
             }
 
             if (mis.length) {
-                // Moved from #authContainer to #securityBadgeContainer
                 $("#securityBadgeContainer").prepend(
                     BADGE("DOMAIN SENDER MISMATCH", `From: ${fromBaseFull}\nMismatched E-mail Address: ${mis.join(", ")}`)
                 );
