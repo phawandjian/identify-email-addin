@@ -80,7 +80,7 @@
                 <Group id="msgReadGroup">
                   <Label resid="groupLabel"/>
 
-                  <!-- Task‑pane button -->
+                  <!-- Task-pane button -->
                   <Control xsi:type="Button" id="msgReadOpenPaneButton">
                     <Label resid="taskPaneButtonLabel"/>
                     <Supertip>
