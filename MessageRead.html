@@ -15,8 +15,11 @@
     <script src="https://phawandjian.github.io/identify-email-addin/Scripts/MessageBanner.js"></script>
 
     <!-- our CSS/JS assets hosted on GitHub Pages -->
+    <!-- NOTE: We did not change the CSS file version. -->
     <link href="https://phawandjian.github.io/identify-email-addin/MessageRead.css?v=13" rel="stylesheet" />
-    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=54"></script>
+
+    <!-- CHANGED: bumped JS version to v=55 -->
+    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=55"></script>
 
     <!-- Fabric core from Microsoft -->
     <link rel="stylesheet"
@@ -152,57 +155,66 @@
         </div>
         <div class="card-body">
             <div class="ms-Grid">
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">from</div>
+
+                <!-- CHANGED: user-friendly labels + tooltips -->
+                <div class="ms-Grid-row" title="The From address of this message">
+                    <div class="ms-Grid-col ms-sm5">From Address</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="from"></span>
                         <button type="button" class="copy-btn" data-copy-target="from" title="Copy to clipboard">📋</button>
                     </div>
                 </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">sender</div>
+
+                <div class="ms-Grid-row" title="The Sender address if different from From address">
+                    <div class="ms-Grid-col ms-sm5">Sender Address</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="sender"></span>
                         <button type="button" class="copy-btn" data-copy-target="sender" title="Copy to clipboard">📋</button>
                     </div>
                 </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">to</div>
+
+                <div class="ms-Grid-row" title="All primary recipients of this message">
+                    <div class="ms-Grid-col ms-sm5">To Recipients</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="to"></span>
                         <button type="button" class="copy-btn" data-copy-target="to" title="Copy to clipboard">📋</button>
                     </div>
                 </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">cc</div>
+
+                <div class="ms-Grid-row" title="All CC recipients of this message">
+                    <div class="ms-Grid-col ms-sm5">CC Recipients</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="cc"></span>
                         <button type="button" class="copy-btn" data-copy-target="cc" title="Copy to clipboard">📋</button>
                     </div>
                 </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">subject</div>
+
+                <div class="ms-Grid-row" title="The Subject line of this email">
+                    <div class="ms-Grid-col ms-sm5">Subject</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="subject"></span>
                         <button type="button" class="copy-btn" data-copy-target="subject" title="Copy to clipboard">📋</button>
                     </div>
                 </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">conversationId</div>
+
+                <div class="ms-Grid-row" title="The unique ID linking replies together in a conversation">
+                    <div class="ms-Grid-col ms-sm5">Conversation ID</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="conversationId" class="long-id"></span>
                         <button type="button" class="copy-btn" data-copy-target="conversationId" title="Copy to clipboard">📋</button>
                     </div>
                 </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">internetMessageId</div>
+
+                <div class="ms-Grid-row" title="The raw Internet Message ID header of this email">
+                    <div class="ms-Grid-col ms-sm5">Internet Message ID</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="internetMessageId" class="long-id"></span>
                         <button type="button" class="copy-btn" data-copy-target="internetMessageId" title="Copy to clipboard">📋</button>
                     </div>
                 </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">normalizedSubject</div>
+
+                <div class="ms-Grid-row" title="The 'normalizedSubject' as recognized by Outlook">
+                    <div class="ms-Grid-col ms-sm5">Normalized Subject</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="normalizedSubject"></span>
                         <button type="button" class="copy-btn" data-copy-target="normalizedSubject" title="Copy to clipboard">📋</button>
@@ -216,40 +228,46 @@
     <div class="card collapsible collapsed" id="item-props-card">
         <div class="section-title">
             <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
-            <span>Item&nbsp;properties</span>
+            <span>Item&nbsp;Properties</span>
         </div>
         <div class="card-body">
             <div class="ms-Grid">
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">dateTimeCreated</div>
+
+                <!-- CHANGED: user-friendly labels + tooltips -->
+                <div class="ms-Grid-row" title="When this email was originally created">
+                    <div class="ms-Grid-col ms-sm5">Date Time Created</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="dateTimeCreated"></span>
                         <button type="button" class="copy-btn" data-copy-target="dateTimeCreated" title="Copy to clipboard">📋</button>
                     </div>
                 </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">dateTimeModified</div>
+
+                <div class="ms-Grid-row" title="When this email was last modified">
+                    <div class="ms-Grid-col ms-sm5">Date Time Modified</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="dateTimeModified"></span>
                         <button type="button" class="copy-btn" data-copy-target="dateTimeModified" title="Copy to clipboard">📋</button>
                     </div>
                 </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">itemClass</div>
+
+                <div class="ms-Grid-row" title="The Outlook item class (e.g. IPM.Note)">
+                    <div class="ms-Grid-col ms-sm5">Item Class</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="itemClass"></span>
                         <button type="button" class="copy-btn" data-copy-target="itemClass" title="Copy to clipboard">📋</button>
                     </div>
                 </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">itemId</div>
+
+                <div class="ms-Grid-row" title="The unique item ID in Outlook/Exchange">
+                    <div class="ms-Grid-col ms-sm5">Item ID</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="itemId" class="long-id"></span>
                         <button type="button" class="copy-btn" data-copy-target="itemId" title="Copy to clipboard">📋</button>
                     </div>
                 </div>
-                <div class="ms-Grid-row">
-                    <div class="ms-Grid-col ms-sm5">itemType</div>
+
+                <div class="ms-Grid-row" title="Indicates if this is an email, appointment, etc.">
+                    <div class="ms-Grid-col ms-sm5">Item Type</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
                         <span id="itemType"></span>
                         <button type="button" class="copy-btn" data-copy-target="itemType" title="Copy to clipboard">📋</button>

@@ -1,9 +1,10 @@
-﻿/* MessageRead.js – v54
-   Changes from v53:
-   • Added a “warn” color state for SPF/DKIM/DMARC = “none” or “N/A”
-   • Used friendlier color swatches for fail vs. warn
-   • Polished the auth-summary text to look more professional
-   All other code remains intact so as not to break anything.
+﻿/* MessageRead.js – v55
+   Changes from v54:
+   1) Added logic to treat links as “trusted internal” if they match the user’s domain.
+   2) Don’t flag those internal links as suspicious/external.
+   3) Use a ✔️ green checkmark to visually highlight trusted internal links.
+   4) Added minor tooltips and label adjustments where relevant.
+   Everything else remains intact.
 */
 
 (function () {
@@ -115,7 +116,7 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v54"; // for debugging reference
+    window._identifyEmailVersion = "v55"; // updated version for debugging reference
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -206,25 +207,31 @@
             const uniqueDomains = new Set(allDomains);
             const senderCount = allDomains.filter(d => d === senderBase).length;
             const userCount = allDomains.filter(d => d === userBase).length;
-            const externalCount = urls.length - senderCount;
+
+            // CHANGED: internal trusted links
+            const internalCount = allDomains.filter(d => isTrustedInternalLink(d)).length;
+            // do not flag these internal links as external
+            const externalCount = urls.length - (senderCount + internalCount);
 
             // clear security-badges
             const $sec = $("#securityBadgeContainer").empty();
 
-            // put some domain match info
-            if (externalCount) {
-                $sec.prepend(BADGE(`${externalCount} external URL${externalCount !== 1 ? "s" : ""}`, `URLs not matching sender’s domain`));
+            if (externalCount > 0) {
+                $sec.prepend(BADGE(`${externalCount} external URL${externalCount !== 1 ? "s" : ""}`,
+                    `URLs not matching sender's domain or your internal domain`));
             }
             if (userCount) {
-                $sec.prepend(BADGE(`${userCount} match Your Domain`, `Your domain (${userBase}) appears ${userCount} time(s)`));
+                $sec.prepend(BADGE(`${userCount} match Your Domain`,
+                    `Your domain (${userBase}) appears ${userCount} time(s)`));
             }
             if (senderCount) {
-                $sec.prepend(BADGE(`${senderCount} match Sender Domain`, `Sender’s domain (${senderBase}) appears ${senderCount} time(s)`));
+                $sec.prepend(BADGE(`${senderCount} match Sender Domain`,
+                    `Sender’s domain (${senderBase}) appears ${senderCount} time(s)`));
             }
             if (urls.length) {
                 $sec.prepend(
                     BADGE(
-                        `${urls.length} URL${urls.length !== 1 ? "s" : ""} | ${uniqueDomains.size} DOMAIN${uniqueDomains.size !== 1 ? "s" : ""}`,
+                        `${urls.length} URL${urls.length !== 1 ? "s" : ""} | ${uniqueDomains.size} DOMAIN${uniqueDomains.size !== 1 ? "s" : ""}`,
                         "Total URLs and unique domains"
                     )
                 );
@@ -280,7 +287,7 @@
         // also place an attach-badge with count
         const $ac = $("#attachBadgeContainer").empty();
         if (l.length) {
-            $ac.append(BADGE(`${l.length} ATTACHMENT${l.length !== 1 ? "s" : ""}`, "Review attachments before opening"));
+            $ac.append(BADGE(`${l.length} ATTACHMENT${l.length !== 1 ? "s" : ""}`, "Review attachments before opening"));
         }
     }
 
@@ -411,9 +418,29 @@
         }
     }
 
+    // NEW HELPER: check if a domain is trusted internal
+    function isTrustedInternalLink(domain) {
+        if (!domain) return false;
+        // if matches the user's domain, treat as internal
+        if (window.__userDomain && domainsMatchForInternal(domain, window.__userDomain)) {
+            return true;
+        }
+        return false;
+    }
+
+    // Show the link with a green check if it's internal
     function shortUrlSpan(u) {
         const s = truncateUrl(u, 30);
-        return `<span class="short-url" title="${escapeHtml(u)}">${escapeHtml(s)}</span>`;
+        let domain = "";
+        try {
+            domain = baseDom(new URL(u).hostname.toLowerCase());
+        } catch { /* invalid URL fallback */ }
+
+        if (isTrustedInternalLink(domain)) {
+            return `<span class="short-url" title="Trusted internal link (domain matches your org)">✔️ ${escapeHtml(s)}</span>`;
+        } else {
+            return `<span class="short-url" title="${escapeHtml(u)}">${escapeHtml(s)}</span>`;
+        }
     }
 
     function truncateUrl(u, max) {
@@ -467,7 +494,6 @@
     function buildSpfBadge(status) {
         const s = (status || "").toLowerCase();
         let icon, cls;
-        // “warn” color if missing or "none"
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-spf-warn";
@@ -588,7 +614,7 @@
 
             if (mismatches.length) {
                 $("#securityBadgeContainer").prepend(
-                    BADGE("DOMAIN SENDER MISMATCH", `From: ${fromBaseFull}\nMismatched E-mail Address: ${mismatches.join(", ")}`)
+                    BADGE("DOMAIN SENDER MISMATCH", `From: ${fromBaseFull}\nMismatched E-mail Address: ${mismatches.join(", ")}`)
                 );
                 $("#security-card").removeClass("collapsed");
             }
@@ -642,7 +668,7 @@
         const senderBase = baseDom(dom(it.sender?.emailAddress || ""));
         if (!fromBase || !senderBase || fromBase === senderBase) return;
         $("#securityBadgeContainer").prepend(
-            BADGE("FROM ⁄ SENDER MISMATCH", `From: ${fromBase}\nSender: ${senderBase}`)
+            BADGE("FROM ⁄ SENDER MISMATCH", `From: ${fromBase}\nSender: ${senderBase}`)
         );
         $("#security-card").removeClass("collapsed");
     }
