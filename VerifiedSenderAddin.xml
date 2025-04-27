@@ -8,7 +8,7 @@
   xsi:type="MailApp">
 
   <Id>d46def6c-d063-4ec2-9a0c-0d2a76abca65</Id>
-  <Version>1.0.0.7</Version>
+  <Version>1.0.0.8</Version>
   <ProviderName>IdentifyEmail</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
 
@@ -31,10 +31,10 @@
     <Host Name="Mailbox"/>
   </Hosts>
 
-  <!-- ↑↑ CHANGE #1: MinVersion raised to 1.5 -->
+  <!-- ↑↑ CHANGE #1: MinVersion raised to 1.8 -->
   <Requirements>
     <Sets>
-      <Set Name="Mailbox" MinVersion="1.5"/>
+      <Set Name="Mailbox" MinVersion="1.8"/>
     </Sets>
   </Requirements>
 
