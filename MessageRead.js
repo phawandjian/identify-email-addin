@@ -1,7 +1,8 @@
-﻿/* MessageRead.js – v58
-   Changes from v57:
-   1) Added click handler for the “X” close button (bottom left)
-      so it closes the task pane or window properly.
+﻿/* MessageRead.js – v60
+   CHANGES from v59:
+   1) Updated the hover text (title) for SPF, DKIM, DMARC pass/fail/NA 
+      to be more user-friendly for non-technical folks.
+   2) Bumped internal version to v60.
 */
 
 (function () {
@@ -19,80 +20,56 @@
 
     // A large set of reputable-company domains for domain-based verification:
     const verifiedDomains = new Set([
-        // 1. E-commerce Market Leaders (20)
+        // (list of domains remains unchanged)
         "amazon.com", "ebay.com", "alibaba.com", "aliexpress.com", "jd.com", "walmart.com", "target.com", "rakuten.com", "mercadolibre.com", "flipkart.com", "overstock.com", "etsy.com", "groupon.com", "wayfair.com", "zappos.com", "shein.com", "gearbest.com", "banggood.com", "tmall.com", "shopify.com",
 
-        // 2. Large Retailers & Department Stores (20)
         "costco.com", "kohls.com", "bestbuy.com", "macys.com", "nordstrom.com", "bloomingdales.com", "dillards.com", "jcpenney.com", "sears.com", "neimanmarcus.com", "saksfifthavenue.com", "meijer.com", "biglots.com", "rossstores.com", "tjmaxx.com", "marshalls.com", "burlington.com", "dollargeneral.com", "familydollar.com", "bedbathandbeyond.com",
 
-        // 3. Fashion & Apparel (20)
         "gap.com", "oldnavy.com", "bananarepublic.com", "uniqlo.com", "hm.com", "zara.com", "forever21.com", "asos.com", "revolve.com", "urbanoutfitters.com", "freepeople.com", "anthropologie.com", "abercrombie.com", "hollisterco.com", "fashionnova.com", "victoriassecret.com", "adidas.com", "nike.com", "underarmour.com", "lululemon.com",
 
-        // 4. Technology & Software (20)
         "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com", "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com", "gitlab.com", "atlassian.com",
         "kaseya.net",
 
-        // 5. Electronics & Hardware (20)
         "samsung.com", "lg.com", "sony.com", "panasonic.com", "philips.com", "sharpusa.com", "huawei.com", "xiaomi.com", "oneplus.com", "realme.com", "oppo.com", "vivo.com", "toshiba.com", "pioneer.com", "jvc.com", "canon.com", "nikon.com", "epson.com", "fujifilm.com", "bose.com",
 
-        // 6. Payment & Financial Services (20)
         "paypal.com", "stripe.com", "squareup.com", "venmo.com", "skrill.com", "payoneer.com", "wepay.com", "adyen.com", "authorize.net", "alipay.com", "neteller.com", "googlepay.com", "amazonpay.com", "worldpay.com", "firstdata.com", "payu.com", "bill.com", "intuit.com", "xero.com", "coinbase.com",
 
-        // 7. Banks & Lending (20)
         "chase.com", "wellsfargo.com", "bankofamerica.com", "citi.com", "usbank.com", "pnc.com", "truist.com", "capitalone.com", "americanexpress.com", "discover.com", "goldmansachs.com", "barclays.com", "hsbc.com", "lloydsbank.com", "rbs.co.uk", "santander.com", "bbva.com", "bnymellon.com", "sofi.com", "ally.com",
 
-        // 8. Insurance (20)
         "geico.com", "progressive.com", "allstate.com", "statefarm.com", "farmers.com", "usaa.com", "libertymutual.com", "nationwide.com", "travelers.com", "chubb.com", "zurichna.com", "thehartford.com", "metlife.com", "prudential.com", "aetna.com", "cigna.com", "humana.com", "aflac.com", "coloniallife.com", "globelife.com",
 
-        // 9. Healthcare & Pharma (20)
         "pfizer.com", "moderna.com", "johnsonandjohnson.com", "merck.com", "astrazeneca.com", "novartis.com", "roche.com", "gsk.com", "sanofi.com", "abbvie.com", "bristolmyerssquibb.com", "lilly.com", "bayer.com", "amgen.com", "teva.com", "viatris.com", "regeneron.com", "cardinalhealth.com", "mckesson.com", "abbott.com",
 
-        // 10. Telecom & ISPs (20)
         "att.com", "verizon.com", "t-mobile.com", "sprint.com", "xfinity.com", "comcast.com", "charter.com", "spectrum.com", "centurylink.com", "frontier.com", "bt.com", "vodafone.com", "orange.com", "telefonica.com", "rogers.com", "bell.ca", "telus.com", "telstra.com", "mtn.com", "uscellular.com",
 
-        // 11. Social Media & Networking (20)
         "facebook.com", "instagram.com", "twitter.com", "linkedin.com", "snapchat.com", "pinterest.com", "tiktok.com", "reddit.com", "tumblr.com", "weibo.com", "wechat.com", "discord.com", "quora.com", "meetup.com", "xing.com", "vk.com", "flickr.com", "behance.net", "deviantart.com", "medium.com",
 
-        // 12. Internet & Tech Giants (20)
         "baidu.com", "yandex.com", "cloudflare.com", "akamai.com", "digitalocean.com", "rackspace.com", "godaddy.com", "namecheap.com", "wordpress.com", "squarespace.com", "weebly.com", "wix.com", "bigcommerce.com", "mailchimp.com", "hubspot.com", "constantcontact.com", "webex.com", "cisco.com", "github.com", "tencent.com",
 
-        // 13. Travel Sites (20)
         "booking.com", "expedia.com", "tripadvisor.com", "orbitz.com", "travelocity.com", "priceline.com", "kayak.com", "skyscanner.com", "trivago.com", "hotwire.com", "hopper.com", "agoda.com", "cheapoair.com", "ebookers.com", "cheapair.com", "airfarewatchdog.com", "lastminute.com", "travelzoo.com", "travelgenio.com", "momondo.com",
 
-        // 14. Airlines (20)
         "delta.com", "united.com", "southwest.com", "american.com", "aa.com", "alaskaair.com", "jetblue.com", "spirit.com", "hawaiianairlines.com", "allegiantair.com", "britishairways.com", "lufthansa.com", "airfrance.com", "klm.com", "emirates.com", "qatarairways.com", "etihad.com", "cathaypacific.com", "singaporeair.com", "aerlingus.com",
 
-        // 15. Hotels & Accommodation (20)
         "marriott.com", "hilton.com", "hyatt.com", "ihg.com", "choicehotels.com", "wyndhamhotels.com", "accor.com", "ritzcarlton.com", "fourseasons.com", "fairmont.com", "starwoodhotels.com", "mgmresorts.com", "wynnresorts.com", "hostels.com", "motel6.com", "bestwestern.com", "radissonhotels.com", "scandichotels.com", "oyorooms.com", "airbnb.com",
 
-        // 16. Car Rentals & Transportation (20)
         "hertz.com", "avis.com", "budget.com", "enterprise.com", "alamo.com", "nationalcar.com", "thrifty.com", "dollar.com", "sixt.com", "uhaul.com", "pensketruckrental.com", "lyft.com", "uber.com", "grab.com", "bolt.eu", "cabify.com", "lime.me", "bird.co", "spin.app", "turo.com",
 
-        // 17. Food & Beverage (20)
         "starbucks.com", "dunkindonuts.com", "mcdonalds.com", "burgerking.com", "wendys.com", "tacobell.com", "pizzahut.com", "dominos.com", "papajohns.com", "chipotle.com", "panerabread.com", "chick-fil-a.com", "kfc.com", "subway.com", "fiveguys.com", "sonicdrivein.com", "arbys.com", "dairyqueen.com", "littlecaesars.com", "jimmyjohns.com",
 
-        // 18. Logistics & Shipping (20)
         "ups.com", "fedex.com", "dhl.com", "usps.com", "canadapost.ca", "royalmail.com", "parcelforce.com", "hermesworld.com", "dpd.com", "tnt.com", "aramex.com", "gls-group.eu", "yamato-hd.co.jp", "japanpost.jp", "laposte.fr", "upsupplychain.com", "fedexcustomcritical.com", "dhlglobalforwarding.com", "ontrac.com", "yrc.com",
 
-        // 19. Media & Entertainment (20)
         "netflix.com", "hulu.com", "disneyplus.com", "hbo.com", "showtime.com", "paramountplus.com", "peacocktv.com", "discoveryplus.com", "espn.com", "fox.com", "abc.com", "nbc.com", "cbs.com", "bbc.co.uk", "cnn.com", "bloomberg.com", "reuters.com", "theguardian.com", "nytimes.com", "wsj.com",
 
-        // 20. Automotive (20)
         "ford.com", "gm.com", "chevrolet.com", "toyota.com", "honda.com", "nissanusa.com", "hyundaiusa.com", "kia.com", "tesla.com", "bmw.com", "mercedes-benz.com", "audi.com", "volkswagen.com", "porsche.com", "volvo.com", "subaru.com", "mazdausa.com", "dodge.com", "jeep.com", "ramtrucks.com",
 
-        // 21. Education (20)
         "harvard.edu", "mit.edu", "stanford.edu", "berkeley.edu", "ox.ac.uk", "cam.ac.uk", "yale.edu", "princeton.edu", "columbia.edu", "ucla.edu", "nyu.edu", "upenn.edu", "caltech.edu", "cmu.edu", "gatech.edu", "uf.edu", "umich.edu", "k12.com", "coursera.org", "edx.org",
 
-        // 22. Nonprofits & International Orgs (20)
         "un.org", "who.int", "worldbank.org", "imf.org", "wto.org", "unesco.org", "unicef.org", "redcross.org", "salvationarmy.org", "unitedway.org", "habitat.org", "wwf.org", "greenpeace.org", "amnesty.org", "doctorswithoutborders.org", "care.org", "oxfam.org", "mercycorps.org", "charitywater.org", "worldvision.org",
 
-        // 23. Government & Public Services (20)
         "usa.gov", "irs.gov", "ssa.gov", "nps.gov", "nasa.gov", "gov.uk", "canada.ca", "australia.gov.au", "india.gov.in", "gov.cn", "europa.eu", "whitehouse.gov", "senate.gov", "house.gov", "justice.gov", "ny.gov", "ca.gov", "gov.za", "scot.gov", "uscis.gov",
 
-        // 24. Manufacturing & Industrial (20)
         "caterpillar.com", "johnsoncontrols.com", "3m.com", "honeywell.com", "siemens.com", "ge.com", "emerson.com", "schneider-electric.com", "rockwellautomation.com", "abb.com", "bosch.com", "hitachihightech.com", "daikin.com", "cummins.com", "whirlpoolcorp.com", "jcb.com", "doosan.com", "yamaha-motor.com", "unitedtechnologies.com", "raytheon.com",
 
-        // 25. Real Estate (20)
         "zillow.com", "realtor.com", "redfin.com", "trulia.com", "homes.com", "remax.com", "century21.com", "coldwellbanker.com", "kw.com", "sothebysrealty.com", "compass.com", "corcoran.com", "zillowgroup.com", "loopnet.com", "officespace.com", "costar.com", "cushmanwakefield.com", "jll.com", "savills.com", "colliers.com"
     ]);
 
@@ -111,8 +88,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v59
-    window._identifyEmailVersion = "v59";
+    // CHANGED: updated version to v60
+    window._identifyEmailVersion = "v60";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -461,9 +438,7 @@
     }
 
     function escapeHtml(s) {
-        return s.replace(/[&<>"']/g, c => ({
-            "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
-        }[c]));
+        return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
     }
 
     /* ---------- 8. SENDER TYPE / VERIFIED ------------- */
@@ -493,56 +468,87 @@
         );
     }
 
-    /* ---------- 9. AUTH HEADERS (COLOR REFINEMENT) ---------- */
+    /* ---------- 9. AUTH HEADERS (with updated hover text) ---------- */
+
+    // CHANGED: New user-friendly hover text lines for SPF
     function buildSpfBadge(status) {
         const s = (status || "").toLowerCase();
         let icon, cls;
+        let hoverText;
+
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-spf-warn";
+            // SPF N/A
+            hoverText = "No SPF record found — can’t confirm if the sender is genuine.";
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-spf-pass";
+            // SPF Pass
+            hoverText = "Sender verified — this email really came from that domain.";
         } else {
             icon = "⚠️";
             cls = "badge-spf-fail";
+            // SPF Fail
+            hoverText = "Sender not verified — the address may be spoofed.";
         }
+
         const label = status ? status.toUpperCase() : "N/A";
-        return `<div class="badge ${cls}" title="Sender-Policy-Framework">${icon}&nbsp;SPF&nbsp;${label}</div>`;
+        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;SPF&nbsp;${label}</div>`;
     }
 
+    // CHANGED: New user-friendly hover text lines for DKIM
     function buildDkimBadge(status) {
         const s = (status || "").toLowerCase();
         let icon, cls;
+        let hoverText;
+
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-dkim-warn";
+            // DKIM N/A
+            hoverText = "No DKIM signature — we can’t confirm who sent this or whether it was changed.";
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-dkim-pass";
+            // DKIM Pass
+            hoverText = "Signature verified — the message is intact and really came from that domain.";
         } else {
             icon = "⚠️";
             cls = "badge-dkim-fail";
+            // DKIM Fail
+            hoverText = "Signature invalid — the sender can’t be verified; the email may be forged or altered.";
         }
+
         const label = status ? status.toUpperCase() : "N/A";
-        return `<div class="badge ${cls}" title="DomainKeys Identified Mail">${icon}&nbsp;DKIM&nbsp;${label}</div>`;
+        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;DKIM&nbsp;${label}</div>`;
     }
 
+    // CHANGED: New user-friendly hover text lines for DMARC
     function buildDmarcBadge(status) {
         const s = (status || "").toLowerCase();
         let icon, cls;
+        let hoverText;
+
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-dmarc-warn";
+            // DMARC N/A
+            hoverText = "No DMARC policy — we can’t confirm if the domain approves this email.";
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-dmarc-pass";
+            // DMARC Pass
+            hoverText = "Policy verified — the domain approves this email.";
         } else {
             icon = "⚠️";
             cls = "badge-dmarc-fail";
+            // DMARC Fail
+            hoverText = "Policy failed — the domain rejects or can’t validate this email; treat with caution.";
         }
+
         const label = status ? status.toUpperCase() : "N/A";
-        return `<div class="badge ${cls}" title="DMARC">${icon}&nbsp;DMARC&nbsp;${label}</div>`;
+        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;DMARC&nbsp;${label}</div>`;
     }
 
     function checkAuthHeaders(it) {
@@ -701,7 +707,6 @@
         return d1.trim().toLowerCase() === d2.trim().toLowerCase();
     }
 
-    // CHANGED: This function was already here, used for truncation. We call it with different max for each field.
     function truncateText(txt, isFile = false, max = 48) {
         if (!txt) return "";
         if (txt.length <= max) return escapeHtml(txt);
@@ -710,26 +715,18 @@
     }
 
     function escapeHtml(s) {
-        return s.replace(/[&<>"']/g, c => ({
-            "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
-        }[c]));
+        return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
     }
 
     function formatAddr(a) {
         return `${a.displayName} <${a.emailAddress}>`;
     }
 
-    // CHANGED: For multiple addresses, truncate each one individually
     function formatAddrsTruncated(arr, maxLimit) {
         if (!arr || !arr.length) return "None";
         return arr.map(a => truncateText(formatAddr(a), false, maxLimit)).join("<br/>");
     }
 
-    function formatAddrs(arr) {
-        return arr?.length ? arr.map(formatAddr).join("<br/>") : "None";
-    }
-
-    /* ---------- 12. NEW: CLIPBOARD COPY ---------- */
     function initCopyButtons() {
         $(document).on("click", ".copy-btn", function (e) {
             e.preventDefault();
