@@ -8,7 +8,7 @@
   xsi:type="MailApp">
 
   <Id>d46def6c-d063-4ec2-9a0c-0d2a76abca65</Id>
-  <Version>1.0.0.7</Version>
+  <Version>1.0.0.6</Version>
   <ProviderName>IdentifyEmail</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
 
@@ -93,17 +93,13 @@
                     </Icon>
                     <Action xsi:type="ShowTaskpane">
                       <SourceLocation resid="messageReadTaskPaneUrl"/>
-                      <!-- ↓↓ CHANGE #2: enable native pinning (we keep this) -->
+                      <!-- ↓↓ CHANGE #2: enable native pinning -->
                       <SupportsPinning>true</SupportsPinning>
                     </Action>
                   </Control>
                 </Group>
 
-                <!-- =========================
-                     COMMENTED-OUT "Pin to Ribbon" BUTTON
-                     =========================
-                -->
-                <!--
+                <!-- Optional custom “Pin to Ribbon” button (unchanged) -->
                 <Group id="msgReadSuperTipGroup">
                   <Label resid="paneReadButtonLabel"/>
                   <Control xsi:type="Button" id="msgReadPinButton">
@@ -122,8 +118,6 @@
                     </Action>
                   </Control>
                 </Group>
-                -->
-
               </OfficeTab>
             </ExtensionPoint>
           </DesktopFormFactor>
