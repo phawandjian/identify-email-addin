@@ -113,8 +113,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v57
-    window._identifyEmailVersion = "v57";
+    // CHANGED: updated version to v58
+    window._identifyEmailVersion = "v58";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -470,10 +470,13 @@
 
         $("#classBadgeContainer").html(`<div class='badge ${cCls}'>${cTxt}</div>`);
 
-        // CHANGED: Truncate the displayed email for Verified Sender (limit 40)
+        // CHANGED: Truncate the displayed email for Verified Sender (limit 40), and place on a new line
         const truncatedEmail = truncateText(email, false, 40);
         $("#verifiedBadgeContainer").html(
-            `<div class='badge ${vCls}'>${isVerified ? "Verified Sender" : "Not Verified"}: ${truncatedEmail}</div>`
+            `<div class='badge ${vCls}' style="white-space: normal;">
+                ${isVerified ? "Verified Sender:" : "Not Verified:"}<br/>
+                ${truncatedEmail}
+            </div>`
         );
     }
 
