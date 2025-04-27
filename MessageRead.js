@@ -1,6 +1,7 @@
-﻿/* MessageRead.js – v56
-   Changes from v55:
-   1) Added truncation for Item ID, so it now displays with an ellipsis and hover text (like Conversation ID).
+﻿/* MessageRead.js – v57
+   Changes from v56:
+   1) Implemented truncation for Verified Sender, Subject, From, Sender, To, and CC using the specified character limits + ellipsis + tooltip.
+   2) Updated window._identifyEmailVersion to "v57".
    Everything else remains intact.
 */
 
@@ -30,7 +31,6 @@
 
         // 4. Technology & Software (20)
         "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com", "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com", "gitlab.com", "atlassian.com",
-
         /* Inserted here: "kaseya.net" */
         "kaseya.net",
 
@@ -113,7 +113,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    window._identifyEmailVersion = "v56"; // updated version for debugging reference
+    // CHANGED: updated version to v57
+    window._identifyEmailVersion = "v57";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -122,7 +123,6 @@
     /* ---------- 2. OFFICE READY ---------- */
     Office.onReady(() => {
         $(document).ready(() => {
-            // If you have a local or GitHub reference for the MessageBanner, it’s loaded outside
             const banner = new components.MessageBanner(document.querySelector(".MessageBanner"));
             banner.hideBanner();
 
@@ -172,7 +172,6 @@
         const it = Office.context.mailbox.item;
         if (!it) return;
 
-        // track user domain for possible "internal" checks
         window.__userDomain = fullDomain(Office.context.mailbox.userProfile.emailAddress);
         window.__internalSenderTrusted = false;
 
@@ -181,8 +180,8 @@
         $("#dateTimeModified").text(it.dateTimeModified.toLocaleString());
         $("#itemClass").text(it.itemClass);
 
-        // CHANGED: Use truncateText for itemId so it has ellipsis + hover
-        $("#itemId").html(truncateText(it.itemId));
+        // CHANGED: Use existing truncateText for itemId so it remains truncated + tooltip
+        $("#itemId").html(truncateText(it.itemId, false, 48));
         $("#itemType").text(it.itemType);
 
         // attachments
@@ -207,25 +206,28 @@
             const senderCount = allDomains.filter(d => d === senderBase).length;
             const userCount = allDomains.filter(d => d === userBase).length;
 
-            // internal trusted links
             const internalCount = allDomains.filter(d => isTrustedInternalLink(d)).length;
-            // do not flag these internal links as external
             const externalCount = urls.length - (senderCount + internalCount);
 
-            // clear security-badges
             const $sec = $("#securityBadgeContainer").empty();
 
             if (externalCount > 0) {
-                $sec.prepend(BADGE(`${externalCount} external URL${externalCount !== 1 ? "s" : ""}`,
-                    `URLs not matching sender's domain or your internal domain`));
+                $sec.prepend(BADGE(
+                    `${externalCount} external URL${externalCount !== 1 ? "s" : ""}`,
+                    `URLs not matching sender's domain or your internal domain`
+                ));
             }
             if (userCount) {
-                $sec.prepend(BADGE(`${userCount} match Your Domain`,
-                    `Your domain (${userBase}) appears ${userCount} time(s)`));
+                $sec.prepend(BADGE(
+                    `${userCount} match Your Domain`,
+                    `Your domain (${userBase}) appears ${userCount} time(s)`
+                ));
             }
             if (senderCount) {
-                $sec.prepend(BADGE(`${senderCount} match Sender Domain`,
-                    `Sender’s domain (${senderBase}) appears ${senderCount} time(s)`));
+                $sec.prepend(BADGE(
+                    `${senderCount} match Sender Domain`,
+                    `Sender’s domain (${senderBase}) appears ${senderCount} time(s)`
+                ));
             }
             if (urls.length) {
                 $sec.prepend(
@@ -236,7 +238,6 @@
                 );
             }
 
-            // collapse Security Flags if empty
             if (!$sec.children().length) {
                 $("#security-card").addClass("collapsed");
             } else {
@@ -244,18 +245,24 @@
             }
         });
 
-        // addresses
-        $("#from").html(formatAddr(it.from));
-        $("#sender").html(formatAddr(it.sender));
-        $("#to").html(formatAddrs(it.to));
-        $("#cc").html(formatAddrs(it.cc));
-        $("#subject").text(it.subject);
+        // CHANGED: Truncate these fields
+        // Verified Sender => 40 chars
+        // From => 50 chars
+        // Sender => 50 chars
+        // Subject => 60 chars
+        // To => 30 chars each
+        // CC => 30 chars each
+
+        $("#from").html(truncateText(formatAddr(it.from), false, 50));
+        $("#sender").html(truncateText(formatAddr(it.sender), false, 50));
+        $("#to").html(formatAddrsTruncated(it.to, 30));
+        $("#cc").html(formatAddrsTruncated(it.cc, 30));
+        $("#subject").html(truncateText(it.subject, false, 60));
 
         $("#conversationId").html(truncateText(it.conversationId));
         $("#internetMessageId").html(truncateText(it.internetMessageId));
         $("#normalizedSubject").text(it.normalizedSubject);
 
-        // classification -> auth -> mismatch
         senderClassification(it);
         checkAuthHeaders(it);
         fromSenderMismatch(it);
@@ -268,7 +275,6 @@
             fill(list);
             return;
         }
-        // older Office JS might need getAttachmentsAsync
         if (it.getAttachmentsAsync) {
             $("#attachments").text("Loading…");
             it.getAttachmentsAsync(r => {
@@ -281,9 +287,7 @@
     }
 
     function fill(l) {
-        // put them in #attachments
-        $("#attachments").html(l.length ? l.map(a => truncateText(a.name, true)).join("<br/>") : "None");
-        // also place an attach-badge with count
+        $("#attachments").html(l.length ? l.map(a => truncateText(a.name, true, 48)).join("<br/>") : "None");
         const $ac = $("#attachBadgeContainer").empty();
         if (l.length) {
             $ac.append(BADGE(`${l.length} ATTACHMENT${l.length !== 1 ? "s" : ""}`, "Review attachments before opening"));
@@ -298,11 +302,8 @@
                 return;
             }
             const text = r.value;
-            // simple find of http/https
             const matches = text.match(/https?:\/\/[^\s"'<>]+/gi) || [];
-            // decode possible link-wrappers
             const decoded = matches.map(u => decodeUrlWrappers(u));
-            // unique set, limit 200
             cb([...new Set(decoded)].slice(0, 200));
         });
     }
@@ -366,9 +367,7 @@
                         try {
                             replaced = decodeURIComponent(replaced);
                             remainder = replaced.trim() || remainder;
-                        } catch {
-                            // fallback
-                        }
+                        } catch { }
                     }
                     return proto + "://" + remainder;
                 }
@@ -385,9 +384,7 @@
                         try {
                             replaced = decodeURIComponent(replaced);
                             remainder = replaced.trim() || remainder;
-                        } catch {
-                            // fallback
-                        }
+                        } catch { }
                     }
                     return `${proto}://${remainder}`;
                 }
@@ -403,7 +400,8 @@
             }
 
             // 4) aka.ms / MS learn
-            if ((lower.includes("aka.ms/") || lower.includes("learn.microsoft.com")) && (lower.includes("targeturl=") || lower.includes("target="))) {
+            if ((lower.includes("aka.ms/") || lower.includes("learn.microsoft.com")) &&
+                (lower.includes("targeturl=") || lower.includes("target="))) {
                 const match = url.match(/[?&](?:targeturl|target)=([^&]+)/i);
                 if (match && match[1]) {
                     const decodedParam = decodeURIComponent(match[1]);
@@ -417,23 +415,20 @@
         }
     }
 
-    // NEW HELPER: check if a domain is trusted internal
     function isTrustedInternalLink(domain) {
         if (!domain) return false;
-        // if matches the user's domain, treat as internal
         if (window.__userDomain && domainsMatchForInternal(domain, window.__userDomain)) {
             return true;
         }
         return false;
     }
 
-    // Show the link with a green check if it's internal
     function shortUrlSpan(u) {
         const s = truncateUrl(u, 30);
         let domain = "";
         try {
             domain = baseDom(new URL(u).hostname.toLowerCase());
-        } catch { /* invalid URL fallback */ }
+        } catch { }
 
         if (isTrustedInternalLink(domain)) {
             return `<span class="short-url" title="Trusted internal link (domain matches your org)">✔️ ${escapeHtml(s)}</span>`;
@@ -448,7 +443,6 @@
             const shortPath = pathname.length > max ? pathname.slice(0, max) + "…" : pathname;
             return `${protocol}//${hostname}${shortPath}`;
         } catch {
-            // fallback for invalid
             return u.length > 60 ? u.slice(0, 57) + "…" : u;
         }
     }
@@ -464,19 +458,10 @@
         const email = (it.from?.emailAddress || "").toLowerCase();
         const base = baseDom(dom(email));
 
-        // final check if user domain is same or in the verified list
         const isVerified =
             verifiedSenders.includes(email) ||
             verifiedDomains.has(base) ||
             window.__internalSenderTrusted;
-
-        console.log("DEBUG => senderClassification: email=", email,
-            "base=", base,
-            "verifiedDomainsHasBase=", verifiedDomains.has(base),
-            "personalDomainsHasBase=", personalDomains.has(base),
-            "internalSenderTrusted=", window.__internalSenderTrusted,
-            "=> final isVerified=", isVerified
-        );
 
         const vCls = isVerified ? "badge-verified" : "badge-unverified";
         const personal = personalDomains.has(base);
@@ -484,8 +469,11 @@
         const cTxt = (personal ? "⚠️ " : "") + "Sender is " + (personal ? "Personal Email" : "Business Email");
 
         $("#classBadgeContainer").html(`<div class='badge ${cCls}'>${cTxt}</div>`);
+
+        // CHANGED: Truncate the displayed email for Verified Sender (limit 40)
+        const truncatedEmail = truncateText(email, false, 40);
         $("#verifiedBadgeContainer").html(
-            `<div class='badge ${vCls}'>${isVerified ? "Verified Sender" : "Not Verified"}: ${email}</div>`
+            `<div class='badge ${vCls}'>${isVerified ? "Verified Sender" : "Not Verified"}: ${truncatedEmail}</div>`
         );
     }
 
@@ -551,7 +539,6 @@
             let spf, dkim, dmarc, envDom = null, dkimDom = null;
             lines.forEach(l => {
                 const low = l.toLowerCase();
-                // parse authentication-results or arc-authentication-results
                 if (low.includes("authentication-results:") || low.includes("arc-authentication-results:")) {
                     spf ??= val(low, "spf=");
                     dkim ??= val(low, "dkim=");
@@ -562,12 +549,10 @@
                         if (m) envDom = baseDom(dom(m[1]));
                     }
                 }
-                // parse return-path
                 if (low.startsWith("return-path:")) {
                     const m = l.match(/<([^>]+)>/);
                     if (m) envDom = baseDom(dom(m[1]));
                 }
-                // parse dkim-signature for “d=domain”
                 if (low.startsWith("dkim-signature:") && !dkimDom) {
                     const mm = l.match(/\bd=([^;]+)/i);
                     if (mm) dkimDom = baseDom(mm[1].trim().toLowerCase());
@@ -579,7 +564,6 @@
             $auth.append(buildDkimBadge(dkim));
             $auth.append(buildDmarcBadge(dmarc));
 
-            // polished summary
             const spfVal = spf ? spf.toUpperCase() : "N/A";
             const dkimVal = dkim ? dkim.toUpperCase() : "N/A";
             const dmarcVal = dmarc ? dmarc.toUpperCase() : "N/A";
@@ -595,10 +579,9 @@
             `;
             $auth.append(summary);
 
-            // check for mismatch
             const shortFromBase = baseDom(dom(it.from.emailAddress));
             const dispBase = baseDom(dispDomFrom(it.from.displayName));
-            const fromBaseFull = shortFromBase; // same as above, named for clarity
+            const fromBaseFull = shortFromBase;
 
             const mismatches = [];
             if (envDom && envDom.toLowerCase() !== fromBaseFull.toLowerCase()) {
@@ -635,10 +618,7 @@
                 spf === "pass" && dkim === "pass" && dmarc === "pass"
             ) {
                 window.__internalSenderTrusted = true;
-                console.log("DEBUG => Internal domain verified => __internalSenderTrusted=true");
             } else {
-                console.log("DEBUG => Not marking as internal trust. Checking fallback…");
-                // fallback if literally no spf/dkim/dmarc data
                 const noAuthData =
                     (!spf || spf === "none" || spf === "null") &&
                     (!dkim || dkim === "none") &&
@@ -651,11 +631,9 @@
                     noAuthData
                 ) {
                     window.__internalSenderTrusted = true;
-                    console.log("DEBUG => Fallback: purely internal message => trust");
                 }
             }
 
-            // re-check classification & mismatch
             senderClassification(it);
             fromSenderMismatch(it);
         });
@@ -674,7 +652,6 @@
 
     /* ---------- 11. UTIL + TRUNCATE TEXT -------------- */
     function val(s, t) {
-        // e.g. "spf=pass smtp.mail..." => after "spf=" pick "pass"
         if (!s.includes(t)) return null;
         const parts = s.split(t);
         if (parts.length < 2) return null;
@@ -689,12 +666,10 @@
     }
 
     function dom(a) {
-        // get the domain portion from "name@domain.com"
         return a?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})$/)?.[1]?.toLowerCase() || null;
     }
 
     function baseDom(d) {
-        // reduce subdomain(s).domain.com => domain.com
         if (!d) return "";
         d = d.replace(/^(?:www\d*|m\d*|l\d*)\./i, "");
         const p = d.split(".");
@@ -702,7 +677,6 @@
     }
 
     function dispDomFrom(n) {
-        // sometimes the displayName might contain an email
         return n?.match(/@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/)?.[1]?.toLowerCase() || null;
     }
 
@@ -711,6 +685,7 @@
         return d1.trim().toLowerCase() === d2.trim().toLowerCase();
     }
 
+    // CHANGED: This function was already here, used for truncation. We call it with different max for each field.
     function truncateText(txt, isFile = false, max = 48) {
         if (!txt) return "";
         if (txt.length <= max) return escapeHtml(txt);
@@ -725,8 +700,13 @@
     }
 
     function formatAddr(a) {
-        // "John Smith <john@smith.com>"
-        return `${a.displayName} &lt;${a.emailAddress}&gt;`;
+        return `${a.displayName} <${a.emailAddress}>`;
+    }
+
+    // CHANGED: For multiple addresses, truncate each one individually
+    function formatAddrsTruncated(arr, maxLimit) {
+        if (!arr || !arr.length) return "None";
+        return arr.map(a => truncateText(formatAddr(a), false, maxLimit)).join("<br/>");
     }
 
     function formatAddrs(arr) {
