@@ -31,7 +31,7 @@
     <Host Name="Mailbox"/>
   </Hosts>
 
-  <!-- ↑↑ CHANGE #1: MinVersion raised to 1.8 -->
+  <!-- &#x2191;&#x2191; CHANGE #1: MinVersion raised to 1.8 -->
   <Requirements>
     <Sets>
       <Set Name="Mailbox" MinVersion="1.8"/>
@@ -62,7 +62,7 @@
       xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1"
       xsi:type="VersionOverridesV1_1">
 
-      <!-- ↑↑ CHANGE #1 repeated inside VersionOverrides -->
+      <!-- &#x2191;&#x2191; CHANGE #1 repeated inside VersionOverrides -->
       <Requirements>
         <!-- CHANGED FROM 1.5 TO 1.8 TO MATCH TOP-LEVEL AND SUPPORT PINNING -->
         <bt:Sets DefaultMinVersion="1.8">
@@ -94,7 +94,7 @@
                     </Icon>
                     <Action xsi:type="ShowTaskpane">
                       <SourceLocation resid="messageReadTaskPaneUrl"/>
-                      <!-- ↓↓ CHANGE #2: enable native pinning (we keep this) -->
+                      <!-- &#x2193;&#x2193; CHANGE #2: enable native pinning (we keep this) -->
                       <SupportsPinning>true</SupportsPinning>
                     </Action>
                   </Control>
