@@ -8,7 +8,7 @@
   xsi:type="MailApp">
 
   <Id>d46def6c-d063-4ec2-9a0c-0d2a76abca65</Id>
-  <Version>1.0.0.8</Version>
+  <Version>1.0.0.6</Version>
   <ProviderName>IdentifyEmail</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
 
@@ -23,7 +23,7 @@
   <SupportUrl DefaultValue="https://phawandjian.github.io/identify-email-addin"/>
 
   <AppDomains>
-    <!--  -->
+    <!-- If referencing GitHub Pages domain, keep this. Adjust if using raw or custom domain. -->
     <AppDomain>https://phawandjian.github.io</AppDomain>
   </AppDomains>
 
@@ -31,17 +31,17 @@
     <Host Name="Mailbox"/>
   </Hosts>
 
-  <!-- &#x2191;&#x2191; CHANGE #1: MinVersion raised to 1.8 -->
+  <!-- ↑↑ CHANGE #1: MinVersion raised to 1.5 -->
   <Requirements>
     <Sets>
-      <Set Name="Mailbox" MinVersion="1.8"/>
+      <Set Name="Mailbox" MinVersion="1.5"/>
     </Sets>
   </Requirements>
 
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <!-- Task pane HTML points to GitHub pages -->
+        <!-- Task pane HTML now points to GitHub pages -->
         <SourceLocation DefaultValue="https://phawandjian.github.io/identify-email-addin/MessageRead.html"/>
         <RequestedHeight>250</RequestedHeight>
       </DesktopSettings>
@@ -62,10 +62,9 @@
       xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1"
       xsi:type="VersionOverridesV1_1">
 
-      <!-- &#x2191;&#x2191; CHANGE #1 repeated inside VersionOverrides -->
+      <!-- ↑↑ CHANGE #1 repeated inside VersionOverrides -->
       <Requirements>
-        <!-- CHANGED FROM 1.5 TO 1.8 TO MATCH TOP-LEVEL AND SUPPORT PINNING -->
-        <bt:Sets DefaultMinVersion="1.8">
+        <bt:Sets DefaultMinVersion="1.5">
           <bt:Set Name="Mailbox"/>
         </bt:Sets>
       </Requirements>
@@ -80,7 +79,7 @@
                 <Group id="msgReadGroup">
                   <Label resid="groupLabel"/>
 
-                  <!-- Task-pane button -->
+                  <!-- Task‑pane button -->
                   <Control xsi:type="Button" id="msgReadOpenPaneButton">
                     <Label resid="taskPaneButtonLabel"/>
                     <Supertip>
@@ -94,17 +93,13 @@
                     </Icon>
                     <Action xsi:type="ShowTaskpane">
                       <SourceLocation resid="messageReadTaskPaneUrl"/>
-                      <!-- &#x2193;&#x2193; CHANGE #2: enable native pinning (we keep this) -->
+                      <!-- ↓↓ CHANGE #2: enable native pinning -->
                       <SupportsPinning>true</SupportsPinning>
                     </Action>
                   </Control>
                 </Group>
 
-                <!-- =========================
-                     COMMENTED-OUT "Pin to Ribbon" BUTTON
-                     =========================
-                -->
-                <!--
+                <!-- Optional custom “Pin to Ribbon” button (unchanged) -->
                 <Group id="msgReadSuperTipGroup">
                   <Label resid="paneReadButtonLabel"/>
                   <Control xsi:type="Button" id="msgReadPinButton">
@@ -123,8 +118,6 @@
                     </Action>
                   </Control>
                 </Group>
-                -->
-
               </OfficeTab>
             </ExtensionPoint>
           </DesktopFormFactor>
