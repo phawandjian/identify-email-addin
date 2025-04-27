@@ -1,8 +1,9 @@
-﻿/* MessageRead.js – v60
-   CHANGES from v59:
-   1) Updated the hover text (title) for SPF, DKIM, DMARC pass/fail/NA 
+﻿/* MessageRead.js – v61
+   CHANGES from v60:
+   1) Updated the hover text (title) for SPF, DKIM, DMARC pass/fail/NA
       to be more user-friendly for non-technical folks.
-   2) Bumped internal version to v60.
+   2) Bumped internal version to v61.
+   3) **FIX**: Copy-to-clipboard now grabs the FULL text rather than truncated text.
 */
 
 (function () {
@@ -88,8 +89,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v60
-    window._identifyEmailVersion = "v60";
+    // CHANGED: updated version to v61
+    window._identifyEmailVersion = "v61";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -170,9 +171,17 @@
         $("#dateTimeModified").text(it.dateTimeModified.toLocaleString());
         $("#itemClass").text(it.itemClass);
 
-        // CHANGED: Use existing truncateText for itemId so it remains truncated + tooltip
+        // CHANGED: also store full text for copy
+        $("#dateTimeCreated").data("fulltext", it.dateTimeCreated.toLocaleString());
+        $("#dateTimeModified").data("fulltext", it.dateTimeModified.toLocaleString());
+        $("#itemClass").data("fulltext", it.itemClass);
+
+        // Use existing truncateText for itemId so it remains truncated + tooltip
         $("#itemId").html(truncateText(it.itemId, false, 48));
         $("#itemType").text(it.itemType);
+
+        $("#itemId").data("fulltext", it.itemId);
+        $("#itemType").data("fulltext", it.itemType);
 
         // attachments
         renderAttachments(it);
@@ -249,9 +258,20 @@
         $("#cc").html(formatAddrsTruncated(it.cc, 30));
         $("#subject").html(truncateText(it.subject, false, 60));
 
+        // Also store the full text for copy:
+        $("#from").data("fulltext", formatAddr(it.from));
+        $("#sender").data("fulltext", formatAddr(it.sender));
+        $("#to").data("fulltext", (it.to || []).map(a => formatAddr(a)).join("; "));
+        $("#cc").data("fulltext", (it.cc || []).map(a => formatAddr(a)).join("; "));
+        $("#subject").data("fulltext", it.subject || "");
+
         $("#conversationId").html(truncateText(it.conversationId));
         $("#internetMessageId").html(truncateText(it.internetMessageId));
         $("#normalizedSubject").text(it.normalizedSubject);
+
+        $("#conversationId").data("fulltext", it.conversationId);
+        $("#internetMessageId").data("fulltext", it.internetMessageId);
+        $("#normalizedSubject").data("fulltext", it.normalizedSubject);
 
         senderClassification(it);
         checkAuthHeaders(it);
@@ -714,10 +734,6 @@
         return `<span class="truncate" title="${escapeHtml(txt)}">${ell}</span>`;
     }
 
-    function escapeHtml(s) {
-        return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]));
-    }
-
     function formatAddr(a) {
         return `${a.displayName} <${a.emailAddress}>`;
     }
@@ -731,7 +747,12 @@
         $(document).on("click", ".copy-btn", function (e) {
             e.preventDefault();
             const targetId = $(this).data("copyTarget");
-            const textToCopy = $("#" + targetId).text().trim();
+            const $targetEl = $("#" + targetId);
+
+            // NEW: prefer the stored full text if present
+            const dataFull = $targetEl.data("fulltext");
+            const textToCopy = dataFull || $targetEl.text().trim();
+
             if (!textToCopy) return;
 
             if (navigator.clipboard && navigator.clipboard.writeText) {
