@@ -23,7 +23,7 @@
   <SupportUrl DefaultValue="https://phawandjian.github.io/identify-email-addin"/>
 
   <AppDomains>
-    <!-- If referencing GitHub Pages domain, keep this. Adjust if using raw or custom domain. -->
+    <!--  -->
     <AppDomain>https://phawandjian.github.io</AppDomain>
   </AppDomains>
 
@@ -41,7 +41,7 @@
   <FormSettings>
     <Form xsi:type="ItemRead">
       <DesktopSettings>
-        <!-- Task pane HTML now points to GitHub pages -->
+        <!-- Task pane HTML points to GitHub pages -->
         <SourceLocation DefaultValue="https://phawandjian.github.io/identify-email-addin/MessageRead.html"/>
         <RequestedHeight>250</RequestedHeight>
       </DesktopSettings>
@@ -64,7 +64,8 @@
 
       <!-- ↑↑ CHANGE #1 repeated inside VersionOverrides -->
       <Requirements>
-        <bt:Sets DefaultMinVersion="1.5">
+        <!-- CHANGED FROM 1.5 TO 1.8 TO MATCH TOP-LEVEL AND SUPPORT PINNING -->
+        <bt:Sets DefaultMinVersion="1.8">
           <bt:Set Name="Mailbox"/>
         </bt:Sets>
       </Requirements>
