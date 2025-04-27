@@ -1,8 +1,7 @@
-﻿/* MessageRead.js – v57
-   Changes from v56:
-   1) Implemented truncation for Verified Sender, Subject, From, Sender, To, and CC using the specified character limits + ellipsis + tooltip.
-   2) Updated window._identifyEmailVersion to "v57".
-   Everything else remains intact.
+﻿/* MessageRead.js – v58
+   Changes from v57:
+   1) Added click handler for the “X” close button (bottom left)
+      so it closes the task pane or window properly.
 */
 
 (function () {
@@ -31,7 +30,6 @@
 
         // 4. Technology & Software (20)
         "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com", "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com", "gitlab.com", "atlassian.com",
-        /* Inserted here: "kaseya.net" */
         "kaseya.net",
 
         // 5. Electronics & Hardware (20)
@@ -113,8 +111,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v58
-    window._identifyEmailVersion = "v58";
+    // CHANGED: updated version to v59
+    window._identifyEmailVersion = "v59";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -135,6 +133,21 @@
 
             // Re-load on item changed (i.e. user selects a different message)
             Office.context.mailbox.addHandlerAsync(Office.EventType.ItemChanged, loadProps);
+
+            // ---------- NEW: Fix the “X” close button so it closes the entire task pane ----------
+            $(document).on("click", ".MessageBanner-close", function (evt) {
+                evt.preventDefault();
+
+                // Attempt to hide or close the add-in task pane
+                if (Office && Office.addin && typeof Office.addin.hide === "function") {
+                    Office.addin.hide();
+                } else if (Office && Office.context && Office.context.ui && typeof Office.context.ui.closeContainer === "function") {
+                    Office.context.ui.closeContainer();
+                } else {
+                    // Fallback if neither API is available
+                    window.close();
+                }
+            });
         });
     });
 
