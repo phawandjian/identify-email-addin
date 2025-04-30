@@ -1,10 +1,9 @@
-﻿/* MessageRead.js – v61
-   CHANGES from v60:
-   1) Updated the hover text (title) for SPF, DKIM, DMARC pass/fail/NA
-      to be more user-friendly for non-technical folks.
-   2) Bumped internal version to v61.
-   3) **FIX**: Copy-to-clipboard now grabs the FULL text rather than truncated text.
-   4) **NEW**: A safety banner at the top that answers “Is this email safe?”
+﻿/* MessageRead.js – v63
+   CHANGES from v62:
+   1) Tweaked the caution banner color to a more readable yellow.
+   2) When an internal email triggers "PossiblyNotSafe", the banner now says
+      “Likely Safe (internal), but use caution” to clarify the scenario.
+   3) Bumped internal version to v63.
 */
 
 (function () {
@@ -90,8 +89,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v62
-    window._identifyEmailVersion = "v62";
+    // CHANGED: updated version to v63
+    window._identifyEmailVersion = "v63";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -821,8 +820,16 @@
             bannerEl.style.backgroundColor = "#c8f7c5"; // a light green
             bannerEl.textContent = "✅ Safe – All trust checks passed";
         } else if (status === "PossiblyNotSafe") {
-            bannerEl.style.backgroundColor = "#fff176"; // a yellow
-            bannerEl.textContent = "⚠️ Caution – One or more checks failed";
+
+            // CHANGED: use a friendlier yellow + special text if internal
+            if (window.__internalSenderTrusted) {
+                bannerEl.style.backgroundColor = "#FFF3CD";
+                bannerEl.textContent = "⚠️ Likely Safe (internal), but use caution – One or more checks failed";
+            } else {
+                bannerEl.style.backgroundColor = "#FFF3CD"; // changed from #fff176
+                bannerEl.textContent = "⚠️ Caution – One or more checks failed";
+            }
+
         } else {
             // Unsafe
             bannerEl.style.backgroundColor = "#f6989d"; // a softer red
@@ -854,10 +861,6 @@
         const allPass = spfPass && dkimPass && dmarcPass;
 
         if (allPass && verified) {
-            // Also optional check for suspicious attachments or links
-            // but by the user's example, "Safe" is strictly if "no suspicious links or attachments"
-            // We'll do a simple check: if there are 0 attachments and 0 external URLs, let's call it Safe
-            // or we let it remain Safe if everything else is perfect
             return "Safe";
         }
 
