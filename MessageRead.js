@@ -1,9 +1,7 @@
-﻿/* MessageRead.js – v63
-   CHANGES from v62:
-   1) Tweaked the caution banner color to a more readable yellow.
-   2) When an internal email triggers "PossiblyNotSafe", the banner now says
-      “Likely Safe (internal), but use caution” to clarify the scenario.
-   3) Bumped internal version to v63.
+﻿/* MessageRead.js – v64
+   CHANGES from v63:
+   1) Updated the caution banner background color to a different, more readable shade (#FFF4CF).
+   2) Everything else remains identical.
 */
 
 (function () {
@@ -89,8 +87,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v63
-    window._identifyEmailVersion = "v63";
+    // CHANGED: updated version to v64
+    window._identifyEmailVersion = "v64";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -821,12 +819,12 @@
             bannerEl.textContent = "✅ Safe – All trust checks passed";
         } else if (status === "PossiblyNotSafe") {
 
-            // CHANGED: use a friendlier yellow + special text if internal
+            // Keep special text if internal
             if (window.__internalSenderTrusted) {
-                bannerEl.style.backgroundColor = "#FFF3CD";
+                bannerEl.style.backgroundColor = "#FFF4CF";
                 bannerEl.textContent = "⚠️ Likely Safe (internal), but use caution – One or more checks failed";
             } else {
-                bannerEl.style.backgroundColor = "#FFF3CD"; // changed from #fff176
+                bannerEl.style.backgroundColor = "#FFF4CF"; // New shade of yellow
                 bannerEl.textContent = "⚠️ Caution – One or more checks failed";
             }
 
