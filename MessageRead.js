@@ -1,7 +1,7 @@
-﻿/* MessageRead.js – v64
-   CHANGES from v63:
-   1) Updated the caution banner background color to a different, more readable shade (#FFF4CF).
-   2) Everything else remains identical.
+﻿/* MessageRead.js – v65
+   CHANGES from v64:
+   1) When "PossiblyNotSafe", we now pick a different yellow if dark mode is on.
+   2) Everything else remains identical; no functionality removed or broken.
 */
 
 (function () {
@@ -87,8 +87,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v64
-    window._identifyEmailVersion = "v64";
+    // CHANGED: updated version to v65
+    window._identifyEmailVersion = "v65";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -153,6 +153,11 @@
 
     function setTheme(m) {
         $("body").toggleClass("dark-mode", m === "dark");
+    }
+
+    function isDarkMode() {
+        // helper to see if user has toggled to dark
+        return $("body").hasClass("dark-mode");
     }
 
     /* ---------- 4. COLLAPSIBLES ---------- */
@@ -818,16 +823,16 @@
             bannerEl.style.backgroundColor = "#c8f7c5"; // a light green
             bannerEl.textContent = "✅ Safe – All trust checks passed";
         } else if (status === "PossiblyNotSafe") {
-
+            // CHANGED: pick a different background if dark mode
+            const cautionColor = isDarkMode() ? "#5E4E1C" : "#FFF4CF";
             // Keep special text if internal
             if (window.__internalSenderTrusted) {
-                bannerEl.style.backgroundColor = "#FFF4CF";
+                bannerEl.style.backgroundColor = cautionColor;
                 bannerEl.textContent = "⚠️ Likely Safe (internal), but use caution – One or more checks failed";
             } else {
-                bannerEl.style.backgroundColor = "#FFF4CF"; // New shade of yellow
+                bannerEl.style.backgroundColor = cautionColor;
                 bannerEl.textContent = "⚠️ Caution – One or more checks failed";
             }
-
         } else {
             // Unsafe
             bannerEl.style.backgroundColor = "#f6989d"; // a softer red
