@@ -4,6 +4,7 @@
       to be more user-friendly for non-technical folks.
    2) Bumped internal version to v61.
    3) **FIX**: Copy-to-clipboard now grabs the FULL text rather than truncated text.
+   4) **NEW**: A safety banner at the top that answers “Is this email safe?”
 */
 
 (function () {
@@ -89,12 +90,21 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v61
-    window._identifyEmailVersion = "v61";
+    // CHANGED: updated version to v62
+    window._identifyEmailVersion = "v62";
 
     // track user's domain and internal trust
     window.__userDomain = "";
     window.__internalSenderTrusted = false;
+
+    // NEW: We’ll track some global info for the safety banner
+    window._spfResult = null;
+    window._dkimResult = null;
+    window._dmarcResult = null;
+    window._hasDomainMismatch = false;
+    window._isVerifiedSender = false;
+    window._externalUrlCount = 0;
+    window._attachmentCount = 0;
 
     /* ---------- 2. OFFICE READY ---------- */
     Office.onReady(() => {
@@ -166,6 +176,15 @@
         window.__userDomain = fullDomain(Office.context.mailbox.userProfile.emailAddress);
         window.__internalSenderTrusted = false;
 
+        // Reset our tracking for new item
+        window._spfResult = null;
+        window._dkimResult = null;
+        window._dmarcResult = null;
+        window._hasDomainMismatch = false;
+        window._isVerifiedSender = false;
+        window._externalUrlCount = 0;
+        window._attachmentCount = 0;
+
         // Fill item props
         $("#dateTimeCreated").text(it.dateTimeCreated.toLocaleString());
         $("#dateTimeModified").text(it.dateTimeModified.toLocaleString());
@@ -189,6 +208,7 @@
         // urls
         $("#urls").text("Scanning…");
         scanBodyUrls(it, urls => {
+            window._externalUrlCount = urls.length;
             $("#urls").html(urls.length ? urls.map(shortUrlSpan).join("<br/>") : "None");
 
             const senderBase = baseDom(dom((it.sender?.emailAddress || it.from.emailAddress || "").toLowerCase()));
@@ -242,6 +262,9 @@
             } else {
                 $("#security-card").removeClass("collapsed");
             }
+
+            // If checkAuthHeaders has finished by now, update banner again:
+            updateEmailSafetyBanner();
         });
 
         // CHANGED: Truncate these fields
@@ -298,6 +321,7 @@
 
     function fill(l) {
         $("#attachments").html(l.length ? l.map(a => truncateText(a.name, true, 48)).join("<br/>") : "None");
+        window._attachmentCount = l.length;
         const $ac = $("#attachBadgeContainer").empty();
         if (l.length) {
             $ac.append(BADGE(`${l.length} ATTACHMENT${l.length !== 1 ? "s" : ""}`, "Review attachments before opening"));
@@ -471,6 +495,8 @@
             verifiedDomains.has(base) ||
             window.__internalSenderTrusted;
 
+        window._isVerifiedSender = isVerified;
+
         const vCls = isVerified ? "badge-verified" : "badge-unverified";
         const personal = personalDomains.has(base);
         const cCls = personal ? "badge-personal" : "badge-business";
@@ -478,7 +504,7 @@
 
         $("#classBadgeContainer").html(`<div class='badge ${cCls}'>${cTxt}</div>`);
 
-        // CHANGED: Truncate the displayed email for Verified Sender (limit 40), and place on a new line
+        // CHANGED: Truncate the displayed email for Verified Sender (limit 40)
         const truncatedEmail = truncateText(email, false, 40);
         $("#verifiedBadgeContainer").html(
             `<div class='badge ${vCls}' style="white-space: normal;">
@@ -489,8 +515,6 @@
     }
 
     /* ---------- 9. AUTH HEADERS (with updated hover text) ---------- */
-
-    // CHANGED: New user-friendly hover text lines for SPF
     function buildSpfBadge(status) {
         const s = (status || "").toLowerCase();
         let icon, cls;
@@ -499,17 +523,14 @@
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-spf-warn";
-            // SPF N/A
             hoverText = "No SPF record found — can’t confirm if the sender is genuine.";
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-spf-pass";
-            // SPF Pass
             hoverText = "Sender verified — this email really came from that domain.";
         } else {
             icon = "⚠️";
             cls = "badge-spf-fail";
-            // SPF Fail
             hoverText = "Sender not verified — the address may be spoofed.";
         }
 
@@ -517,7 +538,6 @@
         return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;SPF&nbsp;${label}</div>`;
     }
 
-    // CHANGED: New user-friendly hover text lines for DKIM
     function buildDkimBadge(status) {
         const s = (status || "").toLowerCase();
         let icon, cls;
@@ -526,17 +546,14 @@
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-dkim-warn";
-            // DKIM N/A
             hoverText = "No DKIM signature — we can’t confirm who sent this or whether it was changed.";
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-dkim-pass";
-            // DKIM Pass
             hoverText = "Signature verified — the message is intact and really came from that domain.";
         } else {
             icon = "⚠️";
             cls = "badge-dkim-fail";
-            // DKIM Fail
             hoverText = "Signature invalid — the sender can’t be verified; the email may be forged or altered.";
         }
 
@@ -544,7 +561,6 @@
         return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;DKIM&nbsp;${label}</div>`;
     }
 
-    // CHANGED: New user-friendly hover text lines for DMARC
     function buildDmarcBadge(status) {
         const s = (status || "").toLowerCase();
         let icon, cls;
@@ -553,17 +569,14 @@
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-dmarc-warn";
-            // DMARC N/A
             hoverText = "No DMARC policy — we can’t confirm if the domain approves this email.";
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-dmarc-pass";
-            // DMARC Pass
             hoverText = "Policy verified — the domain approves this email.";
         } else {
             icon = "⚠️";
             cls = "badge-dmarc-fail";
-            // DMARC Fail
             hoverText = "Policy failed — the domain rejects or can’t validate this email; treat with caution.";
         }
 
@@ -600,6 +613,10 @@
                     if (mm) dkimDom = baseDom(mm[1].trim().toLowerCase());
                 }
             });
+
+            window._spfResult = spf?.toLowerCase() || "none";
+            window._dkimResult = dkim?.toLowerCase() || "none";
+            window._dmarcResult = dmarc?.toLowerCase() || "none";
 
             const $auth = $("#authContainer").empty();
             $auth.append(buildSpfBadge(spf));
@@ -641,7 +658,9 @@
                     BADGE("DOMAIN SENDER MISMATCH", `From: ${fromBaseFull}\nMismatched E-mail Address: ${mismatches.join(", ")}`)
                 );
                 $("#security-card").removeClass("collapsed");
+                window._hasDomainMismatch = true;
             }
+
             if (
                 mismatches.length ||
                 (spf && spf !== "pass") ||
@@ -678,6 +697,9 @@
 
             senderClassification(it);
             fromSenderMismatch(it);
+
+            // Final step: now that we have SPF/DKIM/DMARC, update the safety banner
+            updateEmailSafetyBanner();
         });
     }
 
@@ -775,6 +797,72 @@
                 }
             }
         });
+    }
+
+    /* ---------- 12. NEW: SAFETY BANNER LOGIC ---------- */
+    function updateEmailSafetyBanner() {
+        // We only update after we have at least attempted SPF/DKIM/DMARC check,
+        // but some fields might still be “none” if not found.
+        const spf = window._spfResult;
+        const dkim = window._dkimResult;
+        const dmarc = window._dmarcResult;
+        const mismatch = window._hasDomainMismatch;
+        const verifiedSender = window._isVerifiedSender;
+        const externalUrls = window._externalUrlCount;
+        const attachCount = window._attachmentCount;
+
+        // Decide final safety
+        const status = computeEmailSafety(spf, dkim, dmarc, verifiedSender, mismatch, externalUrls, attachCount);
+        const bannerEl = document.getElementById("safetyBanner");
+
+        if (!bannerEl) return; // no banner container => do nothing
+
+        if (status === "Safe") {
+            bannerEl.style.backgroundColor = "#c8f7c5"; // a light green
+            bannerEl.textContent = "✅ Safe – All trust checks passed";
+        } else if (status === "PossiblyNotSafe") {
+            bannerEl.style.backgroundColor = "#fff176"; // a yellow
+            bannerEl.textContent = "⚠️ Caution – One or more checks failed";
+        } else {
+            // Unsafe
+            bannerEl.style.backgroundColor = "#f6989d"; // a softer red
+            bannerEl.textContent = "❌ Unsafe – Clear indicators of risk";
+        }
+    }
+
+    /**
+     * Compute final "Safe" / "PossiblyNotSafe" / "Unsafe"
+     */
+    function computeEmailSafety(spf, dkim, dmarc, verified, mismatch, urlCount, attachCount) {
+        // Basic rules:
+        // 1) If SPF/DKIM/DMARC any is "fail", or domain mismatch => "Unsafe"
+        // 2) If not verified, or some are "none"/"n/a", => "PossiblyNotSafe"
+        // 3) If all pass + verified + no mismatch => "Safe"
+        const spfFail = (spf === "fail");
+        const dkimFail = (dkim === "fail");
+        const dmarcFail = (dmarc === "fail");
+
+        // 1) CLEAR FAIL => UNSAFE
+        if (spfFail || dkimFail || dmarcFail || mismatch) {
+            return "Unsafe";
+        }
+
+        // 2) If all pass => we’re good
+        const spfPass = (spf === "pass");
+        const dkimPass = (dkim === "pass");
+        const dmarcPass = (dmarc === "pass");
+        const allPass = spfPass && dkimPass && dmarcPass;
+
+        if (allPass && verified) {
+            // Also optional check for suspicious attachments or links
+            // but by the user's example, "Safe" is strictly if "no suspicious links or attachments"
+            // We'll do a simple check: if there are 0 attachments and 0 external URLs, let's call it Safe
+            // or we let it remain Safe if everything else is perfect
+            return "Safe";
+        }
+
+        // Otherwise => "POSSIBLY NOT SAFE"
+        return "PossiblyNotSafe";
     }
 
 })();

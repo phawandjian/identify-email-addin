@@ -18,8 +18,8 @@
     <!-- NOTE: We did not change the CSS file version. -->
     <link href="https://phawandjian.github.io/identify-email-addin/MessageRead.css?v=13" rel="stylesheet" />
 
-    <!-- CHANGED: bumped JS version from v=60 to v=61 -->
-    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=61"></script>
+    <!-- CHANGED: bumped JS version from v=61 to v=62 -->
+    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=62"></script>
 
     <!-- Fabric core from Microsoft -->
     <link rel="stylesheet"
@@ -48,6 +48,16 @@
         .collapsed .card-body {
             display: none;
         }
+
+        /* NEW: Banner at the top for "Is this email safe?" */
+        .safety-banner {
+            font-size: 15px;
+            font-weight: bold;
+            margin: 8px 16px;
+            padding: 12px;
+            border-radius: 10px;
+            color: #000; /* Text color is managed in JS if needed. */
+        }
     </style>
 </head>
 <body class="ms-Fabric" dir="ltr">
@@ -59,6 +69,9 @@
             <span class="theme-label">Dark&nbsp;Mode</span>
         </label>
     </div>
+
+    <!-- NEW: High-level banner answering “Is this email safe?” -->
+    <div id="safetyBanner" class="safety-banner"></div>
 
     <!-- VERIFIED SENDER (default expanded now) -->
     <div class="card collapsible" id="verified-card">
