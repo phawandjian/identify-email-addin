@@ -95,6 +95,31 @@ A lightweight, client-side dashboard that surfaces objective trust signals for e
   * Your admin may have disabled sideloading. Ask IT to enable **Add from URL** or deploy the add-in centrally via the Microsoft 365 admin center.
 
 ---
+Un-install / Remove the IdentifyEmail (“Verified Sender”) add-in
+
+Tip: If your IT department deployed the add-in centrally, you will not see a Remove option—ask your Microsoft 365 admin to withdraw the deployment from the admin center.
+
+macOS (both “New” & “Legacy” Outlook)
+	1.	Open Outlook for Mac.
+	2.	In the Home ribbon choose … More options ➜ Get Add-ins.
+	3.	In the Add-ins window select My add-ins on the left.
+	4.	Scroll to Custom add-ins. Locate Verified Sender.
+	5.	Click the ⋯ (three-dot) menu on its tile and choose Remove → Remove again to confirm.  ￼
+	6.	Close the Add-ins window.
+	7.	If the task-pane pin is still visible in messages, quit and reopen Outlook once to clear the cached button.
+
+Windows – Classic desktop (Microsoft 365 Current Channel)
+	1.	In Outlook choose File ➜ Manage Add-ins (opens My Add-ins in your browser).
+	2.	Under My add-ins find Verified Sender.
+	3.	Click the ⋯ menu on the tile → Remove → Remove to confirm.  ￼
+	4.	Return to Outlook and restart the app so the ribbon refreshes.
+
+Windows – New Outlook (web-tech)
+	1.	From the Home ribbon click Get Add-ins.
+	2.	Choose My add-ins on the left.
+	3.	Under Custom add-ins locate Verified Sender, open the ⋯ menu and pick Remove → Remove.  ￼
+	4.	Close the dialog; the task-pane icon disappears immediately (restart if it lingers).
+---
 
 ### License
 
