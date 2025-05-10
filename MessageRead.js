@@ -1,7 +1,7 @@
-﻿/* MessageRead.js – v67
-   CHANGES from v66:
-   1) Forced text color to remain black for the safety banner when status is “Safe” or “Caution / PossiblyNotSafe.”
-   2) Bumped version from 66 to 67.
+﻿/* MessageRead.js – v68
+   CHANGES from v67:
+   1) If “Safe” or “PossiblyNotSafe” statuses, forcibly set black text using setProperty("color","#000","important").
+   2) Bumped version from 67 to 68.
 */
 
 (function () {
@@ -87,8 +87,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v67
-    window._identifyEmailVersion = "v67";
+    // CHANGED: updated version to v68
+    window._identifyEmailVersion = "v68";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -192,7 +192,7 @@
         $("#dateTimeModified").text(it.dateTimeModified.toLocaleString());
         $("#itemClass").text(it.itemClass);
 
-        // CHANGED: also store full text for copy
+        // also store full text for copy
         $("#dateTimeCreated").data("fulltext", it.dateTimeCreated.toLocaleString());
         $("#dateTimeModified").data("fulltext", it.dateTimeModified.toLocaleString());
         $("#itemClass").data("fulltext", it.itemClass);
@@ -269,7 +269,7 @@
             updateEmailSafetyBanner();
         });
 
-        // CHANGED: Truncate these fields
+        // Truncate these fields
         $("#from").html(truncateText(formatAddr(it.from), false, 50));
         $("#sender").html(truncateText(formatAddr(it.sender), false, 50));
         $("#to").html(formatAddrsTruncated(it.to, 30));
@@ -498,7 +498,7 @@
 
         $("#classBadgeContainer").html(`<div class='badge ${cCls}'>${cTxt}</div>`);
 
-        // CHANGED: Truncate the displayed email for Verified Sender (limit 40)
+        // Truncate the displayed email for Verified Sender (limit 40)
         const truncatedEmail = truncateText(email, false, 40);
         $("#verifiedBadgeContainer").html(
             `<div class='badge ${vCls}' style="white-space: normal;">
@@ -591,18 +591,18 @@
     }
 
     function checkAuthHeaders(it) {
-        // NEW: If purely internal (From=Sender=User domain), skip SPF/DKIM/DMARC checks and mark them as “internal”
+        // If purely internal (From=Sender=User domain), skip SPF/DKIM/DMARC checks and mark them as “internal”
         const fromEmail = (it.from?.emailAddress || "").toLowerCase();
         const senderEmail = (it.sender?.emailAddress || "").toLowerCase();
         if (
             fromEmail && senderEmail &&
-            fromEmail === senderEmail && // must match exactly
+            fromEmail === senderEmail &&
             window.__userDomain &&
             domainsMatchForInternal(fullDomain(fromEmail), window.__userDomain) &&
             domainsMatchForInternal(fullDomain(senderEmail), window.__userDomain) &&
             !personalDomains.has(window.__userDomain.toLowerCase())
         ) {
-            // This is purely internal – skip normal header parse; treat SPF/DKIM/DMARC as “internal”
+            // purely internal
             console.log("Detected internal from domain => skipping spf/dkim/dmarc checks");
             window._spfResult = "internal";
             window._dkimResult = "internal";
@@ -615,7 +615,7 @@
             return;
         }
 
-        // Otherwise, we do the normal check:
+        // Otherwise, do the normal check
         if (!it.getAllInternetHeadersAsync) return;
         it.getAllInternetHeadersAsync(r => {
             if (r.status !== "succeeded") return;
@@ -802,7 +802,7 @@
             const targetId = $(this).data("copyTarget");
             const $targetEl = $("#" + targetId);
 
-            // NEW: prefer the stored full text if present
+            // prefer the stored full text if present
             const dataFull = $targetEl.data("fulltext");
             const textToCopy = dataFull || $targetEl.text().trim();
 
@@ -830,7 +830,7 @@
         });
     }
 
-    /* ---------- 12. NEW: SAFETY BANNER LOGIC ---------- */
+    /* ---------- 12. SAFETY BANNER LOGIC ---------- */
     function updateEmailSafetyBanner() {
         const spf = window._spfResult;
         const dkim = window._dkimResult;
@@ -848,14 +848,14 @@
 
         if (status === "Safe") {
             bannerEl.style.backgroundColor = "#c8f7c5"; // a light green
-            /* CHANGED: force text color to black even in dark mode */
-            bannerEl.style.color = "#000";
+            // CHANGED: force black text with highest priority
+            bannerEl.style.setProperty("color", "#000", "important");
             bannerEl.textContent = "✅ Safe – All trust checks passed";
         } else if (status === "PossiblyNotSafe") {
             const cautionColor = isDarkMode() ? "#5E4E1C" : "#FFF4CF";
             bannerEl.style.backgroundColor = cautionColor;
-            /* CHANGED: force text color to black even in dark mode */
-            bannerEl.style.color = "#000";
+            // CHANGED: force black text with highest priority
+            bannerEl.style.setProperty("color", "#000", "important");
             if (window.__internalSenderTrusted) {
                 bannerEl.textContent = "⚠️ Likely Safe (internal), but use caution – One or more checks failed";
             } else {
@@ -863,16 +863,13 @@
             }
         } else {
             bannerEl.style.backgroundColor = "#f6989d"; // a softer red
-            // We leave text color alone in unsafe scenario
+            // We leave text color alone for "Unsafe"
             bannerEl.textContent = "❌ Unsafe – Clear indicators of risk";
         }
     }
 
-    /**
-     * Compute final "Safe" / "PossiblyNotSafe" / "Unsafe"
-     */
     function computeEmailSafety(spf, dkim, dmarc, verified, mismatch, urlCount, attachCount) {
-        // SPECIAL: If spf/dkim/dmarc are "internal", treat them as pass. Then degrade to PossiblyNotSafe if there are links or attachments.
+        // If spf/dkim/dmarc are "internal", treat them as pass. Then degrade to PossiblyNotSafe if links or attachments.
         if (spf === "internal" && dkim === "internal" && dmarc === "internal") {
             if (urlCount > 0 || attachCount > 0) {
                 return "PossiblyNotSafe";
@@ -881,20 +878,17 @@
             }
         }
 
-        // Basic rules:
         // 1) If SPF/DKIM/DMARC any is "fail", or domain mismatch => "Unsafe"
         // 2) If not verified, or some are "none"/"n/a", => "PossiblyNotSafe"
         // 3) If all pass + verified + no mismatch => "Safe"
+
         const spfFail = (spf === "fail");
         const dkimFail = (dkim === "fail");
         const dmarcFail = (dmarc === "fail");
-
-        // 1) CLEAR FAIL => UNSAFE
         if (spfFail || dkimFail || dmarcFail || mismatch) {
             return "Unsafe";
         }
 
-        // 2) If all pass => we’re good
         const spfPass = (spf === "pass");
         const dkimPass = (dkim === "pass");
         const dmarcPass = (dmarc === "pass");
@@ -904,8 +898,6 @@
             return "Safe";
         }
 
-        // Otherwise => "POSSIBLY NOT SAFE"
         return "PossiblyNotSafe";
     }
-
 })();
