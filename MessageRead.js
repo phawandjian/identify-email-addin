@@ -1,12 +1,7 @@
-﻿/* MessageRead.js – v66
-   CHANGES from v65:
-   1) Added special handling for purely internal emails (From address = Sender address = user’s domain).
-      When this situation is detected, we skip the normal SPF/DKIM/DMARC checks (which generally don’t apply internally),
-      and treat them all as “internal” = pass. Then in computeEmailSafety, if it’s an internal email:
-         - If there are no links or attachments, we label the message as “Safe”.
-         - If there are links or attachments, we label it “Likely Safe (internal), but use caution – One or more checks failed”.
-      This ensures we do NOT incorrectly mark them as failing SPF/DKIM/DMARC when everything is truly internal.
-   2) Bumped version from 65 to 66.
+﻿/* MessageRead.js – v67
+   CHANGES from v66:
+   1) Forced text color to remain black for the safety banner when status is “Safe” or “Caution / PossiblyNotSafe.”
+   2) Bumped version from 66 to 67.
 */
 
 (function () {
@@ -92,8 +87,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v66
-    window._identifyEmailVersion = "v66";
+    // CHANGED: updated version to v67
+    window._identifyEmailVersion = "v67";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -853,19 +848,22 @@
 
         if (status === "Safe") {
             bannerEl.style.backgroundColor = "#c8f7c5"; // a light green
+            /* CHANGED: force text color to black even in dark mode */
+            bannerEl.style.color = "#000";
             bannerEl.textContent = "✅ Safe – All trust checks passed";
         } else if (status === "PossiblyNotSafe") {
-            // We keep the “Likely Safe (internal)” text if window.__internalSenderTrusted
             const cautionColor = isDarkMode() ? "#5E4E1C" : "#FFF4CF";
+            bannerEl.style.backgroundColor = cautionColor;
+            /* CHANGED: force text color to black even in dark mode */
+            bannerEl.style.color = "#000";
             if (window.__internalSenderTrusted) {
-                bannerEl.style.backgroundColor = cautionColor;
                 bannerEl.textContent = "⚠️ Likely Safe (internal), but use caution – One or more checks failed";
             } else {
-                bannerEl.style.backgroundColor = cautionColor;
                 bannerEl.textContent = "⚠️ Caution – One or more checks failed";
             }
         } else {
             bannerEl.style.backgroundColor = "#f6989d"; // a softer red
+            // We leave text color alone in unsafe scenario
             bannerEl.textContent = "❌ Unsafe – Clear indicators of risk";
         }
     }
