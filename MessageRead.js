@@ -1,7 +1,12 @@
-﻿/* MessageRead.js – v65
-   CHANGES from v64:
-   1) When "PossiblyNotSafe", we now pick a different yellow if dark mode is on.
-   2) Everything else remains identical; no functionality removed or broken.
+﻿/* MessageRead.js – v66
+   CHANGES from v65:
+   1) Added special handling for purely internal emails (From address = Sender address = user’s domain).
+      When this situation is detected, we skip the normal SPF/DKIM/DMARC checks (which generally don’t apply internally),
+      and treat them all as “internal” = pass. Then in computeEmailSafety, if it’s an internal email:
+         - If there are no links or attachments, we label the message as “Safe”.
+         - If there are links or attachments, we label it “Likely Safe (internal), but use caution – One or more checks failed”.
+      This ensures we do NOT incorrectly mark them as failing SPF/DKIM/DMARC when everything is truly internal.
+   2) Bumped version from 65 to 66.
 */
 
 (function () {
@@ -87,8 +92,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v65
-    window._identifyEmailVersion = "v65";
+    // CHANGED: updated version to v66
+    window._identifyEmailVersion = "v66";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -270,20 +275,12 @@
         });
 
         // CHANGED: Truncate these fields
-        // Verified Sender => 40 chars
-        // From => 50 chars
-        // Sender => 50 chars
-        // Subject => 60 chars
-        // To => 30 chars each
-        // CC => 30 chars each
-
         $("#from").html(truncateText(formatAddr(it.from), false, 50));
         $("#sender").html(truncateText(formatAddr(it.sender), false, 50));
         $("#to").html(formatAddrsTruncated(it.to, 30));
         $("#cc").html(formatAddrsTruncated(it.cc, 30));
         $("#subject").html(truncateText(it.subject, false, 60));
 
-        // Also store the full text for copy:
         $("#from").data("fulltext", formatAddr(it.from));
         $("#sender").data("fulltext", formatAddr(it.sender));
         $("#to").data("fulltext", (it.to || []).map(a => formatAddr(a)).join("; "));
@@ -530,6 +527,10 @@
             icon = "✔️";
             cls = "badge-spf-pass";
             hoverText = "Sender verified — this email really came from that domain.";
+        } else if (s === "internal") {
+            icon = "✔️";
+            cls = "badge-spf-pass";
+            hoverText = "Internal email (SPF checks skipped).";
         } else {
             icon = "⚠️";
             cls = "badge-spf-fail";
@@ -553,6 +554,10 @@
             icon = "✔️";
             cls = "badge-dkim-pass";
             hoverText = "Signature verified — the message is intact and really came from that domain.";
+        } else if (s === "internal") {
+            icon = "✔️";
+            cls = "badge-dkim-pass";
+            hoverText = "Internal email (DKIM checks skipped).";
         } else {
             icon = "⚠️";
             cls = "badge-dkim-fail";
@@ -576,6 +581,10 @@
             icon = "✔️";
             cls = "badge-dmarc-pass";
             hoverText = "Policy verified — the domain approves this email.";
+        } else if (s === "internal") {
+            icon = "✔️";
+            cls = "badge-dmarc-pass";
+            hoverText = "Internal email (DMARC checks skipped).";
         } else {
             icon = "⚠️";
             cls = "badge-dmarc-fail";
@@ -587,6 +596,31 @@
     }
 
     function checkAuthHeaders(it) {
+        // NEW: If purely internal (From=Sender=User domain), skip SPF/DKIM/DMARC checks and mark them as “internal”
+        const fromEmail = (it.from?.emailAddress || "").toLowerCase();
+        const senderEmail = (it.sender?.emailAddress || "").toLowerCase();
+        if (
+            fromEmail && senderEmail &&
+            fromEmail === senderEmail && // must match exactly
+            window.__userDomain &&
+            domainsMatchForInternal(fullDomain(fromEmail), window.__userDomain) &&
+            domainsMatchForInternal(fullDomain(senderEmail), window.__userDomain) &&
+            !personalDomains.has(window.__userDomain.toLowerCase())
+        ) {
+            // This is purely internal – skip normal header parse; treat SPF/DKIM/DMARC as “internal”
+            console.log("Detected internal from domain => skipping spf/dkim/dmarc checks");
+            window._spfResult = "internal";
+            window._dkimResult = "internal";
+            window._dmarcResult = "internal";
+            window.__internalSenderTrusted = true;
+
+            senderClassification(it);
+            fromSenderMismatch(it);
+            updateEmailSafetyBanner();
+            return;
+        }
+
+        // Otherwise, we do the normal check:
         if (!it.getAllInternetHeadersAsync) return;
         it.getAllInternetHeadersAsync(r => {
             if (r.status !== "succeeded") return;
@@ -803,8 +837,6 @@
 
     /* ---------- 12. NEW: SAFETY BANNER LOGIC ---------- */
     function updateEmailSafetyBanner() {
-        // We only update after we have at least attempted SPF/DKIM/DMARC check,
-        // but some fields might still be “none” if not found.
         const spf = window._spfResult;
         const dkim = window._dkimResult;
         const dmarc = window._dmarcResult;
@@ -823,9 +855,8 @@
             bannerEl.style.backgroundColor = "#c8f7c5"; // a light green
             bannerEl.textContent = "✅ Safe – All trust checks passed";
         } else if (status === "PossiblyNotSafe") {
-            // CHANGED: pick a different background if dark mode
+            // We keep the “Likely Safe (internal)” text if window.__internalSenderTrusted
             const cautionColor = isDarkMode() ? "#5E4E1C" : "#FFF4CF";
-            // Keep special text if internal
             if (window.__internalSenderTrusted) {
                 bannerEl.style.backgroundColor = cautionColor;
                 bannerEl.textContent = "⚠️ Likely Safe (internal), but use caution – One or more checks failed";
@@ -834,7 +865,6 @@
                 bannerEl.textContent = "⚠️ Caution – One or more checks failed";
             }
         } else {
-            // Unsafe
             bannerEl.style.backgroundColor = "#f6989d"; // a softer red
             bannerEl.textContent = "❌ Unsafe – Clear indicators of risk";
         }
@@ -844,6 +874,15 @@
      * Compute final "Safe" / "PossiblyNotSafe" / "Unsafe"
      */
     function computeEmailSafety(spf, dkim, dmarc, verified, mismatch, urlCount, attachCount) {
+        // SPECIAL: If spf/dkim/dmarc are "internal", treat them as pass. Then degrade to PossiblyNotSafe if there are links or attachments.
+        if (spf === "internal" && dkim === "internal" && dmarc === "internal") {
+            if (urlCount > 0 || attachCount > 0) {
+                return "PossiblyNotSafe";
+            } else {
+                return "Safe";
+            }
+        }
+
         // Basic rules:
         // 1) If SPF/DKIM/DMARC any is "fail", or domain mismatch => "Unsafe"
         // 2) If not verified, or some are "none"/"n/a", => "PossiblyNotSafe"
