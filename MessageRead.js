@@ -87,8 +87,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v68
-    window._identifyEmailVersion = "v68";
+    // CHANGED: updated version to v69
+    window._identifyEmailVersion = "v69";
 
     // track user's domain and internal trust
     window.__userDomain = "";
