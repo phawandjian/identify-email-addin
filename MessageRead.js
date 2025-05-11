@@ -4,6 +4,18 @@
    2) Bumped version from 67 to 68.
 */
 
+/* 
+   Additional CHANGES for v71 (verbiage fixes):
+   - Renamed "✔️ SPF PASS" to "✔️ Server Check" (when SPF is pass) 
+     + new tooltip: "We confirmed that the sender is a match with the identity coming from that domain."
+   - Renamed "❌ DKIM N/A" to "❌ Integrity Check" (when DKIM is none or N/A)
+     + new tooltip: "We couldn't detect that the authorized domain matches the one you see."
+   - Renamed "❌ DMARC N/A" to "❌ Sender Match" (when DMARC is none or N/A)
+     + new tooltip: "We couldn't detect that the sender is authentic and the domain matches the brand shown in ‘From:’"
+   - Authentication card header is now "Anti-Spoofing Checks" in the HTML.
+   - Authentication Summary lines are each on their own row, in black text (instead of red).
+*/
+
 (function () {
     "use strict";
 
@@ -87,8 +99,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v70
-    window._identifyEmailVersion = "v70";
+    // CHANGED: updated version to v71
+    window._identifyEmailVersion = "v71";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -509,11 +521,13 @@
     }
 
     /* ---------- 9. AUTH HEADERS (with updated hover text) ---------- */
+
     function buildSpfBadge(status) {
         const s = (status || "").toLowerCase();
         let icon, cls;
         let hoverText;
 
+        // Keep original branches, but update pass scenario with new verbiage
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-spf-warn";
@@ -521,7 +535,8 @@
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-spf-pass";
-            hoverText = "Sender verified — this email really came from that domain.";
+            // CHANGED tooltip to user's requested verbiage for pass:
+            hoverText = "We confirmed that the sender is a match with the identity coming from that domain.";
         } else if (s === "internal") {
             icon = "✔️";
             cls = "badge-spf-pass";
@@ -532,8 +547,16 @@
             hoverText = "Sender not verified — the address may be spoofed.";
         }
 
+        // CHANGED: If SPF = pass, rename text to "Server Check"
+        // Otherwise keep original label "SPF XXX"
         const label = status ? status.toUpperCase() : "N/A";
-        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;SPF&nbsp;${label}</div>`;
+        let finalText = `SPF ${label}`;
+        if (s === "pass") {
+            // user wants “✔️ Server Check” for SPF PASS
+            finalText = "Server Check";
+        }
+
+        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;${finalText}</div>`;
     }
 
     function buildDkimBadge(status) {
@@ -541,10 +564,13 @@
         let icon, cls;
         let hoverText;
 
+        // CHANGED: If DKIM is none or n/a => "❌ Integrity Check"
+        // with new tooltip. Otherwise keep existing logic.
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-dkim-warn";
-            hoverText = "No DKIM signature — we can’t confirm who sent this or whether it was changed.";
+            // NEW tooltip per user request:
+            hoverText = "We couldn't detect that the authorized domain matches the one you see.";
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-dkim-pass";
@@ -560,7 +586,13 @@
         }
 
         const label = status ? status.toUpperCase() : "N/A";
-        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;DKIM&nbsp;${label}</div>`;
+        let finalText = `DKIM ${label}`;
+        if (!status || s === "n/a" || s === "none") {
+            // user wants “❌ Integrity Check” in that scenario
+            finalText = "Integrity Check";
+        }
+
+        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;${finalText}</div>`;
     }
 
     function buildDmarcBadge(status) {
@@ -568,10 +600,13 @@
         let icon, cls;
         let hoverText;
 
+        // CHANGED: If DMARC is none or n/a => "❌ Sender Match"
+        // with new tooltip. Otherwise keep existing logic.
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-dmarc-warn";
-            hoverText = "No DMARC policy — we can’t confirm if the domain approves this email.";
+            // NEW tooltip per user request:
+            hoverText = "We couldn't detect that the sender is authentic and the domain matches the brand shown in ‘From:’";
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-dmarc-pass";
@@ -587,7 +622,13 @@
         }
 
         const label = status ? status.toUpperCase() : "N/A";
-        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;DMARC&nbsp;${label}</div>`;
+        let finalText = `DMARC ${label}`;
+        if (!status || s === "n/a" || s === "none") {
+            // user wants “❌ Sender Match” in that scenario
+            finalText = "Sender Match";
+        }
+
+        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;${finalText}</div>`;
     }
 
     function checkAuthHeaders(it) {
@@ -658,13 +699,16 @@
             const dkimVal = dkim ? dkim.toUpperCase() : "N/A";
             const dmarcVal = dmarc ? dmarc.toUpperCase() : "N/A";
             const isAllPass = (spfVal === "PASS" && dkimVal === "PASS" && dmarcVal === "PASS");
-            const summaryCls = isAllPass ? "auth-pass" : "auth-fail";
 
+            // CHANGED: make each on own line in black
+            const summaryCls = isAllPass ? "auth-pass" : "auth-fail";
             const summary = `
                 <div style="margin-top:8px;"></div>
-                <div class="auth-summary ${summaryCls}">
-                    <strong>Authentication Summary:</strong>
-                    SPF: ${spfVal}, DKIM: ${dkimVal}, DMARC: ${dmarcVal}
+                <div class="auth-summary ${summaryCls}" style="color:#000;">
+                    <strong>Authentication Summary:</strong><br/>
+                    SPF: ${spfVal}<br/>
+                    DKIM: ${dkimVal}<br/>
+                    DMARC: ${dmarcVal}
                 </div>
             `;
             $auth.append(summary);

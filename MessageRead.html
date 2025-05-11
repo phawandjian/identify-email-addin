@@ -18,8 +18,8 @@
     <!-- NOTE: We did not change the CSS file version. -->
     <link href="https://phawandjian.github.io/identify-email-addin/MessageRead.css?v=13" rel="stylesheet" />
 
-    <!-- CHANGED: bumped JS version from v=62 to v=63 -->
-    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=70"></script>
+    <!-- CHANGED: bumped JS version from v=69 to v=70 -->
+    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=71"></script>
 
     <!-- Fabric core from Microsoft -->
     <link rel="stylesheet"
@@ -57,25 +57,6 @@
             padding: 12px;
             border-radius: 10px;
             color: #000; /* Text color is managed in JS if needed. */
-        }
-
-        /* Optional styling for the new checks list under Anti-Spoofing Checks */
-        .checklist {
-            margin-top: 8px;
-        }
-
-        .auth-check {
-            margin-bottom: 6px;
-            font-size: 14px;
-        }
-
-        .check-icon {
-            color: green;
-            margin-right: 4px;
-        }
-
-        .check-label {
-            font-weight: normal;
         }
     </style>
 </head>
@@ -167,8 +148,7 @@
         </div>
     </div>
 
-    <!-- AUTHENTICATION RESULTS -->
-    <!-- CHANGED: Renamed heading to "Anti-Spoofing Checks" and added the three sub-checks. -->
+    <!-- ANTI-SPOOFING CHECKS (renamed from "Authentication Results") -->
     <div class="card collapsible collapsed" id="auth-card">
         <div class="section-title">
             <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
@@ -177,20 +157,6 @@
         </div>
         <div class="card-body">
             <span id="authContainer"></span>
-            <div class="checklist">
-                <div class="auth-check" title="Verifies the sending mail server is authorized for this domain.">
-                    <span class="check-icon">✓</span>
-                    <span class="check-label">Server Check — sender is authorized (SPF)</span>
-                </div>
-                <div class="auth-check" title="Confirms the message is digitally sealed and hasn’t been altered.">
-                    <span class="check-icon">✓</span>
-                    <span class="check-label">Integrity Check — message is intact (DKIM)</span>
-                </div>
-                <div class="auth-check" title="Verifies the authenticated sender matches the displayed sender.">
-                    <span class="check-icon">✓</span>
-                    <span class="check-label">Sender Match — domain matches the sender (DMARC)</span>
-                </div>
-            </div>
         </div>
     </div>
 
