@@ -148,20 +148,23 @@
         </div>
     </div>
 
-    <!-- AUTHENTICATION RESULTS -->
+    <!-- AUTHENTICATION RESULTS (CHANGED: now "Anti-Spoofing Checks") -->
     <div class="card collapsible collapsed" id="auth-card">
         <div class="section-title">
             <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
             <svg viewBox="0 0 16 16"><path d="M8 .8l7.2 3-1 9.2L8 15.2.8 13l-1-9.2z" /></svg>
-            <!-- CHANGED: rename the displayed text below from "Authentication Results" to "Anti-Spoofing Checks" -->
             <span>Anti-Spoofing&nbsp;Checks</span>
         </div>
         <div class="card-body">
-            <!-- Insert the new lines describing SPF, DKIM, DMARC with tooltips -->
-            <div id="antiSpoofChecksText">
-                <div title="Verifies the sending mail server is authorized for this domain.">✓ Server Check — sender is authorized (SPF)</div>
-                <div title="Confirms the message is digitally sealed and hasn’t been altered.">✓ Integrity Check — message is intact (DKIM)</div>
-                <div title="Verifies the authenticated sender matches the displayed sender.">✓ Sender Match — domain matches the sender (DMARC)</div>
+            <!-- Inserted lines describing SPF, DKIM, DMARC with requested tooltips -->
+            <div title="Verifies the sending mail server is authoriszed for this domain.">
+                ✓ Server Check — sender is authorized (SPF)
+            </div>
+            <div title="Confirms the message is digitally sealed and hasn’t been altered.">
+                ✓ Integrity Check — message is intact (DKIM)
+            </div>
+            <div title="Verifies the authenticated sender matches the displayed sender.">
+                ✓ Sender Match — domain matches the sender (DMARC)
             </div>
 
             <span id="authContainer"></span>
