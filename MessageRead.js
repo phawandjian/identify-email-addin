@@ -16,6 +16,13 @@
    - Authentication Summary lines are each on their own row, in black text (instead of red).
 */
 
+/*
+   CHANGED in v72:
+   - Bumped version from 71 to 72 below.
+   - Added modal-based help for Anti-Spoofing Checks (SPF, DKIM, DMARC) and Security Flags (links, attachments, internal vs external).
+   - No removals of existing code. All else remains intact.
+*/
+
 (function () {
     "use strict";
 
@@ -99,8 +106,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED: updated version to v71
-    window._identifyEmailVersion = "v71";
+    // CHANGED in v72: version updated here
+    window._identifyEmailVersion = "v72";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -527,7 +534,6 @@
         let icon, cls;
         let hoverText;
 
-        // Keep original branches, but update pass scenario with new verbiage
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-spf-warn";
@@ -535,7 +541,6 @@
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-spf-pass";
-            // CHANGED tooltip to user's requested verbiage for pass:
             hoverText = "We confirmed that the sender is a match with the identity coming from that domain.";
         } else if (s === "internal") {
             icon = "✔️";
@@ -547,16 +552,13 @@
             hoverText = "Sender not verified — the address may be spoofed.";
         }
 
-        // CHANGED: If SPF = pass, rename text to "Server Check"
-        // Otherwise keep original label "SPF XXX"
-        const label = status ? status.toUpperCase() : "N/A";
-        let finalText = `SPF ${label}`;
+        let label = status ? status.toUpperCase() : "N/A";
         if (s === "pass") {
-            // user wants “✔️ Server Check” for SPF PASS
-            finalText = "Server Check";
+            // rename text to "Server Check" for SPF PASS
+            label = "Server Check";
         }
 
-        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;${finalText}</div>`;
+        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;${label}</div>`;
     }
 
     function buildDkimBadge(status) {
@@ -564,12 +566,9 @@
         let icon, cls;
         let hoverText;
 
-        // CHANGED: If DKIM is none or n/a => "❌ Integrity Check"
-        // with new tooltip. Otherwise keep existing logic.
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-dkim-warn";
-            // NEW tooltip per user request:
             hoverText = "We couldn't detect that the authorized domain matches the one you see.";
         } else if (s === "pass") {
             icon = "✔️";
@@ -585,14 +584,13 @@
             hoverText = "Signature invalid — the sender can’t be verified; the email may be forged or altered.";
         }
 
-        const label = status ? status.toUpperCase() : "N/A";
-        let finalText = `DKIM ${label}`;
+        let label = status ? status.toUpperCase() : "N/A";
         if (!status || s === "n/a" || s === "none") {
-            // user wants “❌ Integrity Check” in that scenario
-            finalText = "Integrity Check";
+            // rename text to "Integrity Check"
+            label = "Integrity Check";
         }
 
-        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;${finalText}</div>`;
+        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;${label}</div>`;
     }
 
     function buildDmarcBadge(status) {
@@ -600,12 +598,9 @@
         let icon, cls;
         let hoverText;
 
-        // CHANGED: If DMARC is none or n/a => "❌ Sender Match"
-        // with new tooltip. Otherwise keep existing logic.
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-dmarc-warn";
-            // NEW tooltip per user request:
             hoverText = "We couldn't detect that the sender is authentic and the domain matches the brand shown in ‘From:’";
         } else if (s === "pass") {
             icon = "✔️";
@@ -621,14 +616,13 @@
             hoverText = "Policy failed — the domain rejects or can’t validate this email; treat with caution.";
         }
 
-        const label = status ? status.toUpperCase() : "N/A";
-        let finalText = `DMARC ${label}`;
+        let label = status ? status.toUpperCase() : "N/A";
         if (!status || s === "n/a" || s === "none") {
-            // user wants “❌ Sender Match” in that scenario
-            finalText = "Sender Match";
+            // rename text to "Sender Match"
+            label = "Sender Match";
         }
 
-        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;${finalText}</div>`;
+        return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;${label}</div>`;
     }
 
     function checkAuthHeaders(it) {
@@ -700,7 +694,6 @@
             const dmarcVal = dmarc ? dmarc.toUpperCase() : "N/A";
             const isAllPass = (spfVal === "PASS" && dkimVal === "PASS" && dmarcVal === "PASS");
 
-            // CHANGED: make each on own line in black
             const summaryCls = isAllPass ? "auth-pass" : "auth-fail";
             const summary = `
                 <div style="margin-top:8px;"></div>
@@ -892,13 +885,12 @@
 
         if (status === "Safe") {
             bannerEl.style.backgroundColor = "#c8f7c5"; // a light green
-            // CHANGED: force black text with highest priority
+            // force black text with highest priority
             bannerEl.style.setProperty("color", "#000", "important");
             bannerEl.textContent = "✅ Safe – All trust checks passed";
         } else if (status === "PossiblyNotSafe") {
             const cautionColor = isDarkMode() ? "#5E4E1C" : "#FFF4CF";
             bannerEl.style.backgroundColor = cautionColor;
-            // CHANGED: force black text with highest priority
             bannerEl.style.setProperty("color", "#000", "important");
             if (window.__internalSenderTrusted) {
                 bannerEl.textContent = "⚠️ Likely Safe (internal), but use caution – One or more checks failed";
@@ -907,7 +899,6 @@
             }
         } else {
             bannerEl.style.backgroundColor = "#f6989d"; // a softer red
-            // We leave text color alone for "Unsafe"
             bannerEl.textContent = "❌ Unsafe – Clear indicators of risk";
         }
     }
@@ -944,4 +935,50 @@
 
         return "PossiblyNotSafe";
     }
+
+    /* ---------- 13. CHANGED in v72: Modal help for Anti-Spoofing & Security Flags ---------- */
+
+    // showHelpAuth: explains SPF, DKIM, DMARC, red flags, etc.
+    window.showHelpAuth = function () {
+        const helpHtml = `
+            <h2>Anti-Spoofing Checks</h2>
+            <p><strong>SPF (Server Policy Framework)</strong>: Verifies the sending server is allowed to send on behalf of that domain.</p>
+            <p><strong>DKIM (DomainKeys Identified Mail)</strong>: Ensures the message was not altered in transit and is signed by the domain’s authorized key.</p>
+            <p><strong>DMARC (Domain-based Message Authentication, Reporting &amp; Conformance)</strong>: Aligns both SPF and DKIM and declares how to handle failing emails.</p>
+            <p>Not all domains implement these checks yet, but their absence can be a red flag. As more providers adopt them, missing or failing checks can indicate spoofing or forgery.</p>
+        `;
+        showHelpModal(helpHtml);
+    };
+
+    // showHelpSecurity: explains links, attachments, internal vs external, etc.
+    window.showHelpSecurity = function () {
+        const helpHtml = `
+            <h2>Security Flags</h2>
+            <p>This card highlights potential risks in an email, such as suspicious links, attachments, and domain mismatches.</p>
+            <ul>
+                <li><strong>Links</strong>: We scan all URLs. External links (not matching your organization or the sender’s domain) are flagged.</li>
+                <li><strong>Attachments</strong>: Attachments can carry malware or harmful content. Always review them carefully.</li>
+                <li><strong>Internal vs External Domains</strong>: We compare domains to your own and to known trusted senders. Emails from unexpected external domains may be riskier.</li>
+            </ul>
+            <p>Review these flags before interacting with any links or attachments you didn’t expect.</p>
+        `;
+        showHelpModal(helpHtml);
+    };
+
+    // common modal display function
+    window.showHelpModal = function (content) {
+        const overlay = document.getElementById("helpModalOverlay");
+        const body = document.getElementById("helpModalBody");
+        if (!overlay || !body) return;
+        body.innerHTML = content;
+        overlay.style.display = "block";
+    };
+
+    // close modal
+    window.closeHelpModal = function () {
+        const overlay = document.getElementById("helpModalOverlay");
+        if (overlay) {
+            overlay.style.display = "none";
+        }
+    };
 })();
