@@ -18,9 +18,14 @@
 
 /*
    CHANGED in v72:
-   - Bumped version from 71 to 72 below.
-   - Added modal-based help for Anti-Spoofing Checks (SPF, DKIM, DMARC) and Security Flags (links, attachments, internal vs external).
-   - No removals of existing code. All else remains intact.
+   - Bumped version from 71 to 72.
+   - Added modal-based help for Anti-Spoofing Checks and Security Flags.
+
+   CHANGED in v73:
+   - Bumped version from 72 to 73 below.
+   - Now we attempt to open a separate Outlook dialog window (displayDialogAsync)
+     to display help info outside the task pane. If that fails or isn’t supported,
+     we fall back to the in-pane overlay modal.
 */
 
 (function () {
@@ -106,8 +111,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED in v72: version updated here
-    window._identifyEmailVersion = "v72";
+    // CHANGED in v73: version updated here
+    window._identifyEmailVersion = "v73";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -885,7 +890,6 @@
 
         if (status === "Safe") {
             bannerEl.style.backgroundColor = "#c8f7c5"; // a light green
-            // force black text with highest priority
             bannerEl.style.setProperty("color", "#000", "important");
             bannerEl.textContent = "✅ Safe – All trust checks passed";
         } else if (status === "PossiblyNotSafe") {
@@ -936,36 +940,112 @@
         return "PossiblyNotSafe";
     }
 
-    /* ---------- 13. CHANGED in v72: Modal help for Anti-Spoofing & Security Flags ---------- */
+    /* ---------- 13. CHANGED in v73: Attempt to open help outside the pane; fallback to modal ---------- */
 
-    // showHelpAuth: explains SPF, DKIM, DMARC, red flags, etc.
     window.showHelpAuth = function () {
-        const helpHtml = `
-            <h2>Anti-Spoofing Checks</h2>
-            <p><strong>SPF (Server Policy Framework)</strong>: Verifies the sending server is allowed to send on behalf of that domain.</p>
-            <p><strong>DKIM (DomainKeys Identified Mail)</strong>: Ensures the message was not altered in transit and is signed by the domain’s authorized key.</p>
-            <p><strong>DMARC (Domain-based Message Authentication, Reporting &amp; Conformance)</strong>: Aligns both SPF and DKIM and declares how to handle failing emails.</p>
-            <p>Not all domains implement these checks yet, but their absence can be a red flag. As more providers adopt them, missing or failing checks can indicate spoofing or forgery.</p>
-        `;
-        showHelpModal(helpHtml);
+        // We prefer an external dialog if available, otherwise fallback to the in-pane overlay
+        tryDisplayDialogAsync("auth");
     };
 
-    // showHelpSecurity: explains links, attachments, internal vs external, etc.
     window.showHelpSecurity = function () {
-        const helpHtml = `
-            <h2>Security Flags</h2>
-            <p>This card highlights potential risks in an email, such as suspicious links, attachments, and domain mismatches.</p>
-            <ul>
-                <li><strong>Links</strong>: We scan all URLs. External links (not matching your organization or the sender’s domain) are flagged.</li>
-                <li><strong>Attachments</strong>: Attachments can carry malware or harmful content. Always review them carefully.</li>
-                <li><strong>Internal vs External Domains</strong>: We compare domains to your own and to known trusted senders. Emails from unexpected external domains may be riskier.</li>
-            </ul>
-            <p>Review these flags before interacting with any links or attachments you didn’t expect.</p>
-        `;
-        showHelpModal(helpHtml);
+        tryDisplayDialogAsync("security");
     };
 
-    // common modal display function
+    function tryDisplayDialogAsync(topic) {
+        if (
+            Office.context &&
+            Office.context.ui &&
+            typeof Office.context.ui.displayDialogAsync === "function"
+        ) {
+            // Construct minimal HTML for outside pop-up. We'll embed the same text from our in-pane help.
+            let helpContentHtml = "";
+            if (topic === "auth") {
+                helpContentHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Anti-Spoofing Checks</title>
+</head>
+<body style="font-family: sans-serif; margin: 16px;">
+  <h2>Anti-Spoofing Checks</h2>
+  <p><strong>SPF (Server Policy Framework)</strong>: Verifies the sending server is allowed to send on behalf of that domain.</p>
+  <p><strong>DKIM (DomainKeys Identified Mail)</strong>: Ensures the message was not altered in transit and is signed by the domain’s authorized key.</p>
+  <p><strong>DMARC (Domain-based Message Authentication, Reporting &amp; Conformance)</strong>: Aligns both SPF and DKIM and declares how to handle failing emails.</p>
+  <p>Not all domains implement these checks yet, but their absence can be a red flag. As more providers adopt them,
+  missing or failing checks can indicate spoofing or forgery.</p>
+</body>
+</html>
+`;
+            } else {
+                helpContentHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <title>Security Flags</title>
+</head>
+<body style="font-family: sans-serif; margin: 16px;">
+  <h2>Security Flags</h2>
+  <p>This card highlights potential risks in an email, such as suspicious links, attachments, and domain mismatches.</p>
+  <ul>
+    <li><strong>Links</strong>: We scan all URLs. External links (not matching your organization or the sender’s domain) are flagged.</li>
+    <li><strong>Attachments</strong>: Attachments can carry malware or harmful content. Always review them carefully.</li>
+    <li><strong>Internal vs External Domains</strong>: We compare domains to your own and to known trusted senders. Emails from unexpected external domains may be riskier.</li>
+  </ul>
+  <p>Review these flags before interacting with any links or attachments you didn’t expect.</p>
+</body>
+</html>
+`;
+            }
+
+            // Prepare a data URL so we don't rely on an external hosting page
+            const encoded = btoa(unescape(encodeURIComponent(helpContentHtml)));
+            const dataUrl = "data:text/html;base64," + encoded;
+
+            Office.context.ui.displayDialogAsync(
+                dataUrl,
+                { width: 50, height: 60, displayInIframe: true }, // reasonable size
+                function (asyncResult) {
+                    if (asyncResult.status !== Office.AsyncResultStatus.Succeeded) {
+                        // Fallback if dialog fails
+                        showHelpModalInternal(topic);
+                    }
+                }
+            );
+        } else {
+            // Fallback if the API isn't available
+            showHelpModalInternal(topic);
+        }
+    }
+
+    function showHelpModalInternal(topic) {
+        if (topic === "auth") {
+            const helpHtml = `
+                <h2>Anti-Spoofing Checks</h2>
+                <p><strong>SPF (Server Policy Framework)</strong>: Verifies the sending server is allowed to send on behalf of that domain.</p>
+                <p><strong>DKIM (DomainKeys Identified Mail)</strong>: Ensures the message was not altered in transit and is signed by the domain’s authorized key.</p>
+                <p><strong>DMARC (Domain-based Message Authentication, Reporting &amp; Conformance)</strong>: Aligns both SPF and DKIM and declares how to handle failing emails.</p>
+                <p>Not all domains implement these checks yet, but their absence can be a red flag. As more providers adopt them,
+                missing or failing checks can indicate spoofing or forgery.</p>
+            `;
+            showHelpModal(helpHtml);
+        } else {
+            const helpHtml = `
+                <h2>Security Flags</h2>
+                <p>This card highlights potential risks in an email, such as suspicious links, attachments, and domain mismatches.</p>
+                <ul>
+                    <li><strong>Links</strong>: We scan all URLs. External links (not matching your organization or the sender’s domain) are flagged.</li>
+                    <li><strong>Attachments</strong>: Attachments can carry malware or harmful content. Always review them carefully.</li>
+                    <li><strong>Internal vs External Domains</strong>: We compare domains to your own and to known trusted senders. Emails from unexpected external domains may be riskier.</li>
+                </ul>
+                <p>Review these flags before interacting with any links or attachments you didn’t expect.</p>
+            `;
+            showHelpModal(helpHtml);
+        }
+    }
+
+    // the same in-pane modal functions from v72 remain
     window.showHelpModal = function (content) {
         const overlay = document.getElementById("helpModalOverlay");
         const body = document.getElementById("helpModalBody");
@@ -974,7 +1054,6 @@
         overlay.style.display = "block";
     };
 
-    // close modal
     window.closeHelpModal = function () {
         const overlay = document.getElementById("helpModalOverlay");
         if (overlay) {

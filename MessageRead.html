@@ -18,8 +18,8 @@
     <!-- NOTE: We did not change the CSS file version. -->
     <link href="https://phawandjian.github.io/identify-email-addin/MessageRead.css?v=13" rel="stylesheet" />
 
-    <!-- CHANGED in v72: bumped JS version from v=71 to v=72 to include help modal additions -->
-    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=72"></script>
+    <!-- CHANGED in v73: bumped JS version from v=72 to v=73 -->
+    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=73"></script>
 
     <!-- Fabric core from Microsoft -->
     <link rel="stylesheet"
@@ -59,7 +59,7 @@
             color: #000; /* Text color is managed in JS if needed. */
         }
 
-        /* CHANGED in v72: Basic modal overlay styles for help popups */
+        /* Basic modal overlay styles (unchanged from v72) */
         .help-modal-overlay {
             position: fixed;
             z-index: 9999;
@@ -135,7 +135,7 @@
             <span>Security&nbsp;Flags</span>
         </div>
         <span id="securityBadgeContainer" class="badge-cell"></span>
-        <!-- CHANGED in v72: Added learn more link for Security Flags -->
+        <!-- Link to open help outside or in the pane (v73) -->
         <div style="margin-top:8px;">
             <a href="#" onclick="showHelpSecurity()">Learn More / Help</a>
         </div>
@@ -195,7 +195,7 @@
         </div>
         <div class="card-body">
             <span id="authContainer"></span>
-            <!-- CHANGED in v72: Added learn more link for Anti-Spoofing Checks -->
+            <!-- Link to open help outside or in the pane (v73) -->
             <div style="margin-top:8px;">
                 <a href="#" onclick="showHelpAuth()">Learn More / Help</a>
             </div>
@@ -347,7 +347,7 @@
         <button class="MessageBanner-close"><i class="ms-Icon ms-Icon--ChromeClose"></i></button>
     </div>
 
-    <!-- CHANGED in v72: a shared modal overlay for help topics -->
+    <!-- Modal overlay for fallback help display -->
     <div id="helpModalOverlay" class="help-modal-overlay" onclick="closeHelpModal()">
         <div class="help-modal-content" onclick="event.stopPropagation()">
             <span class="help-modal-close" onclick="closeHelpModal()">X</span>
