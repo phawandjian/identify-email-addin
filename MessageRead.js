@@ -26,6 +26,11 @@
    - Now we attempt to open a separate Outlook dialog window (displayDialogAsync)
      to display help info outside the task pane. If that fails or isn’t supported,
      we fall back to the in-pane overlay modal.
+
+   CHANGED in v74:
+   - Bumped version from 73 to 74.
+   - No removals, but we log errors if the dialog fails to open.
+   - The in-pane overlay is now more opaque (see HTML overrides).
 */
 
 (function () {
@@ -111,8 +116,8 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED in v73: version updated here
-    window._identifyEmailVersion = "v73";
+    // CHANGED in v74: version updated here
+    window._identifyEmailVersion = "v74";
 
     // track user's domain and internal trust
     window.__userDomain = "";
@@ -940,10 +945,9 @@
         return "PossiblyNotSafe";
     }
 
-    /* ---------- 13. CHANGED in v73: Attempt to open help outside the pane; fallback to modal ---------- */
+    /* ---------- 13. Attempt help outside; fallback to in-pane ---------- */
 
     window.showHelpAuth = function () {
-        // We prefer an external dialog if available, otherwise fallback to the in-pane overlay
         tryDisplayDialogAsync("auth");
     };
 
@@ -957,7 +961,6 @@
             Office.context.ui &&
             typeof Office.context.ui.displayDialogAsync === "function"
         ) {
-            // Construct minimal HTML for outside pop-up. We'll embed the same text from our in-pane help.
             let helpContentHtml = "";
             if (topic === "auth") {
                 helpContentHtml = `
@@ -999,22 +1002,21 @@
 `;
             }
 
-            // Prepare a data URL so we don't rely on an external hosting page
             const encoded = btoa(unescape(encodeURIComponent(helpContentHtml)));
             const dataUrl = "data:text/html;base64," + encoded;
 
             Office.context.ui.displayDialogAsync(
                 dataUrl,
-                { width: 50, height: 60, displayInIframe: true }, // reasonable size
+                { width: 50, height: 60, displayInIframe: true },
                 function (asyncResult) {
                     if (asyncResult.status !== Office.AsyncResultStatus.Succeeded) {
-                        // Fallback if dialog fails
+                        console.warn("Dialog failed. Falling back to in-pane overlay.");
                         showHelpModalInternal(topic);
                     }
                 }
             );
         } else {
-            // Fallback if the API isn't available
+            console.warn("displayDialogAsync not available. Using fallback in-pane overlay.");
             showHelpModalInternal(topic);
         }
     }
@@ -1045,11 +1047,14 @@
         }
     }
 
-    // the same in-pane modal functions from v72 remain
+    // no removals; these remain for the in-pane modal
     window.showHelpModal = function (content) {
         const overlay = document.getElementById("helpModalOverlay");
         const body = document.getElementById("helpModalBody");
-        if (!overlay || !body) return;
+        if (!overlay || !body) {
+            console.warn("Help overlay elements not found; cannot show help content in-pane.");
+            return;
+        }
         body.innerHTML = content;
         overlay.style.display = "block";
     };

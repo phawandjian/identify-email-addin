@@ -18,8 +18,8 @@
     <!-- NOTE: We did not change the CSS file version. -->
     <link href="https://phawandjian.github.io/identify-email-addin/MessageRead.css?v=13" rel="stylesheet" />
 
-    <!-- CHANGED in v73: bumped JS version from v=72 to v=73 -->
-    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=73"></script>
+    <!-- CHANGED in v74: bumped JS version from v=73 to v=74 -->
+    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=74"></script>
 
     <!-- Fabric core from Microsoft -->
     <link rel="stylesheet"
@@ -59,10 +59,11 @@
             color: #000; /* Text color is managed in JS if needed. */
         }
 
-        /* Basic modal overlay styles (unchanged from v72) */
+        /* Existing help-modal-overlay styles (unchanged except see below) */
         .help-modal-overlay {
             position: fixed;
-            z-index: 9999;
+            /* existing z-index was 9999; we’ll raise it to 999999 in case something else is on top */
+            z-index: 999999;
             top: 0;
             left: 0;
             width: 100%;
@@ -91,6 +92,25 @@
             cursor: pointer;
             font-size: 18px;
             font-weight: bold;
+        }
+
+        /*
+         CHANGED in v74: Additional overrides to ensure the in-pane overlay is not too transparent
+         and text is fully readable. We do NOT remove the old code; we simply override it.
+        */
+        .help-modal-overlay {
+            background-color: rgba(0, 0, 0, 0.7) !important; /* darken the overlay so text behind is hidden */
+        }
+
+        .help-modal-content {
+            background-color: #fff !important; /* force white in normal mode */
+            color: #000 !important;
+            opacity: 1.0 !important;
+        }
+
+        body.dark-mode .help-modal-content {
+            background-color: #2c2c2c !important; /* darker for dark mode */
+            color: #e8e8e8 !important;
         }
     </style>
 </head>
@@ -135,7 +155,6 @@
             <span>Security&nbsp;Flags</span>
         </div>
         <span id="securityBadgeContainer" class="badge-cell"></span>
-        <!-- Link to open help outside or in the pane (v73) -->
         <div style="margin-top:8px;">
             <a href="#" onclick="showHelpSecurity()">Learn More / Help</a>
         </div>
@@ -195,7 +214,6 @@
         </div>
         <div class="card-body">
             <span id="authContainer"></span>
-            <!-- Link to open help outside or in the pane (v73) -->
             <div style="margin-top:8px;">
                 <a href="#" onclick="showHelpAuth()">Learn More / Help</a>
             </div>
