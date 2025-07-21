@@ -4,10 +4,10 @@
 
 ---
 
-## Plugin Overview
+## Plugin Overview 
 
-### Identify Email – Outlook Security Add-In  
-A lightweight, client-side dashboard that surfaces objective trust signals for every message opened in Outlook.  
+### Identify Email – Outlook Security Add-In (Supports Paid Office Outlook 365 User Accounts Only).  
+A Office 365 lightweight, client-side dashboard that surfaces objective trust signals for every message opened in Outlook.  
 *No external servers • No data exfiltration • 100 % Office JS*
 
 ---
@@ -46,7 +46,7 @@ A lightweight, client-side dashboard that surfaces objective trust signals for e
 > ```
 
 ---
-
+(Supports Paid Office Outlook 365 User Accounts Only)
 #### macOS (New & Legacy Outlook)
 
 1. Open **Outlook for Mac**.  
@@ -63,7 +63,7 @@ A lightweight, client-side dashboard that surfaces objective trust signals for e
 > **Tip:** If the add-in button doesn’t appear, quit and reopen Outlook once.
 
 ---
-
+(Supports Paid Office Outlook 365 User Accounts Only)
 #### Windows  
 *(Classic desktop & “New” Outlook)*
 
