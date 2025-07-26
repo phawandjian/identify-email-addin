@@ -1,6 +1,6 @@
-﻿/* MessageRead.js – v68
+/* MessageRead.js – v68
    CHANGES from v67:
-   1) If “Safe” or “PossiblyNotSafe” statuses, forcibly set black text using setProperty("color","#000","important").
+   1) If "Safe" or "PossiblyNotSafe" statuses, forcibly set black text using setProperty("color","#000","important").
    2) Bumped version from 67 to 68.
 */
 
@@ -11,7 +11,7 @@
    - Renamed "❌ DKIM N/A" to "❌ Integrity Check" (when DKIM is none or N/A)
      + new tooltip: "We couldn't detect that the authorized domain matches the one you see."
    - Renamed "❌ DMARC N/A" to "❌ Sender Match" (when DMARC is none or N/A)
-     + new tooltip: "We couldn't detect that the sender is authentic and the domain matches the brand shown in ‘From:’"
+     + new tooltip: "We couldn't detect that the sender is authentic and the domain matches the brand shown in 'From:'"
    - Authentication card header is now "Anti-Spoofing Checks" in the HTML.
    - Authentication Summary lines are each on their own row, in black text (instead of red).
 */
@@ -24,7 +24,7 @@
    CHANGED in v73:
    - Bumped version from 72 to 73 below.
    - Now we attempt to open a separate Outlook dialog window (displayDialogAsync)
-     to display help info outside the task pane. If that fails or isn’t supported,
+     to display help info outside the task pane. If that fails or isn't supported,
      we fall back to the in-pane overlay modal.
 
    CHANGED in v74:
@@ -48,57 +48,105 @@
 
     // A large set of reputable-company domains for domain-based verification:
     const verifiedDomains = new Set([
-        // (list of domains remains unchanged)
+        // E-commerce & Retail
         "amazon.com", "ebay.com", "alibaba.com", "aliexpress.com", "jd.com", "walmart.com", "target.com", "rakuten.com", "mercadolibre.com", "flipkart.com", "overstock.com", "etsy.com", "groupon.com", "wayfair.com", "zappos.com", "shein.com", "gearbest.com", "banggood.com", "tmall.com", "shopify.com",
 
+        // Retail Stores
         "costco.com", "kohls.com", "bestbuy.com", "macys.com", "nordstrom.com", "bloomingdales.com", "dillards.com", "jcpenney.com", "sears.com", "neimanmarcus.com", "saksfifthavenue.com", "meijer.com", "biglots.com", "rossstores.com", "tjmaxx.com", "marshalls.com", "burlington.com", "dollargeneral.com", "familydollar.com", "bedbathandbeyond.com",
 
+        // Fashion & Apparel
         "gap.com", "oldnavy.com", "bananarepublic.com", "uniqlo.com", "hm.com", "zara.com", "forever21.com", "asos.com", "revolve.com", "urbanoutfitters.com", "freepeople.com", "anthropologie.com", "abercrombie.com", "hollisterco.com", "fashionnova.com", "victoriassecret.com", "adidas.com", "nike.com", "underarmour.com", "lululemon.com",
 
+        // Technology Companies
         "microsoft.com", "apple.com", "google.com", "oracle.com", "sap.com", "salesforce.com", "adobe.com", "ibm.com", "intel.com", "dell.com", "hp.com", "lenovo.com", "asus.com", "nvidia.com", "amd.com", "autodesk.com", "zoom.us", "slack.com", "gitlab.com", "atlassian.com",
-        "kaseya.net",
+        "kaseya.net", "palantir.com", "databricks.com", "snowflake.com", "unity3d.com", "epicgames.com", "roblox.com", "spotify.com",
 
+        // Project Management & Collaboration
+        "monday.com", "trello.com", "asana.com", "basecamp.com", "clickup.com", "notion.so", "airtable.com", "smartsheet.com", "wrike.com", "teamwork.com",
+
+        // Cybersecurity Companies
+        "sentinelone.com", "crowdstrike.com", "paloaltonetworks.com", "fortinet.com", "checkpoint.com", "fireeye.com", "carbonblack.com", "cylance.com", "symantec.com", "mcafee.com", "trendmicro.com", "kaspersky.com", "sophos.com", "malwarebytes.com", "bitdefender.com", "proofpoint.com", "mimecast.com", "barracuda.com", "zscaler.com", "okta.com", "duo.com", "ping.com", "beyondtrust.com", "cyberark.com", "varonis.com", "splunk.com", "elastic.co", "datadog.com", "sumologic.com", "logrhythm.com", "secureauth.com", "onelogin.com", "lastpass.com", "dashlane.com", "1password.com", "keeper.io", "bitwarden.com",
+
+        // Construction & Engineering
+        "trimble.com", "cat.com", "propelleraero.com", "procore.com", "bentley.com", "tekla.com", "bluebeam.com", "plangrid.com", "fieldwire.com", "structionsite.com", "buildertrend.com", "corecon.com", "viewpoint.com", "spectrum.construction", "hcss.com", "b2wsoftware.com", "heavyjob.com",
+
+        // Enterprise Software & Services
+        "servicenow.com", "workday.com", "docusign.com", "box.com", "dropbox.com", "sharepoint.com", "teams.microsoft.com", "tableau.com", "powerbi.com", "qlik.com", "looker.com", "confluent.io", "hashicorp.com", "docker.com", "kubernetes.io", "redhat.com", "vmware.com", "citrix.com", "nutanix.com", "rubrik.com", "veeam.com", "commvault.com", "netapp.com", "purestorage.com", "dellemc.com", "mongodb.com",
+
+        // Electronics & Consumer Tech
         "samsung.com", "lg.com", "sony.com", "panasonic.com", "philips.com", "sharpusa.com", "huawei.com", "xiaomi.com", "oneplus.com", "realme.com", "oppo.com", "vivo.com", "toshiba.com", "pioneer.com", "jvc.com", "canon.com", "nikon.com", "epson.com", "fujifilm.com", "bose.com",
 
+        // Financial Services & Payments
         "paypal.com", "stripe.com", "squareup.com", "venmo.com", "skrill.com", "payoneer.com", "wepay.com", "adyen.com", "authorize.net", "alipay.com", "neteller.com", "googlepay.com", "amazonpay.com", "worldpay.com", "firstdata.com", "payu.com", "bill.com", "intuit.com", "xero.com", "coinbase.com",
 
+        // Banking
         "chase.com", "wellsfargo.com", "bankofamerica.com", "citi.com", "usbank.com", "pnc.com", "truist.com", "capitalone.com", "americanexpress.com", "discover.com", "goldmansachs.com", "barclays.com", "hsbc.com", "lloydsbank.com", "rbs.co.uk", "santander.com", "bbva.com", "bnymellon.com", "sofi.com", "ally.com",
 
+        // Insurance
         "geico.com", "progressive.com", "allstate.com", "statefarm.com", "farmers.com", "usaa.com", "libertymutual.com", "nationwide.com", "travelers.com", "chubb.com", "zurichna.com", "thehartford.com", "metlife.com", "prudential.com", "aetna.com", "cigna.com", "humana.com", "aflac.com", "coloniallife.com", "globelife.com",
 
+        // Healthcare & Pharmaceutical
         "pfizer.com", "moderna.com", "johnsonandjohnson.com", "merck.com", "astrazeneca.com", "novartis.com", "roche.com", "gsk.com", "sanofi.com", "abbvie.com", "bristolmyerssquibb.com", "lilly.com", "bayer.com", "amgen.com", "teva.com", "viatris.com", "regeneron.com", "cardinalhealth.com", "mckesson.com", "abbott.com",
 
+        // Telecommunications
         "att.com", "verizon.com", "t-mobile.com", "sprint.com", "xfinity.com", "comcast.com", "charter.com", "spectrum.com", "centurylink.com", "frontier.com", "bt.com", "vodafone.com", "orange.com", "telefonica.com", "rogers.com", "bell.ca", "telus.com", "telstra.com", "mtn.com", "uscellular.com",
 
+        // Communication & Productivity
+        "webex.cisco.com", "gotomeeting.com", "ringcentral.com", "8x8.com", "dialpad.com", "vonage.com", "twilio.com", "sendgrid.com", "mailgun.com", "postmark.com", "sparkpost.com",
+
+        // Social Media
         "facebook.com", "instagram.com", "twitter.com", "linkedin.com", "snapchat.com", "pinterest.com", "tiktok.com", "reddit.com", "tumblr.com", "weibo.com", "wechat.com", "discord.com", "quora.com", "meetup.com", "xing.com", "vk.com", "flickr.com", "behance.net", "deviantart.com", "medium.com",
 
+        // Web Services & Infrastructure
         "baidu.com", "yandex.com", "cloudflare.com", "akamai.com", "digitalocean.com", "rackspace.com", "godaddy.com", "namecheap.com", "wordpress.com", "squarespace.com", "weebly.com", "wix.com", "bigcommerce.com", "mailchimp.com", "hubspot.com", "constantcontact.com", "webex.com", "cisco.com", "github.com", "tencent.com",
 
+        // Travel & Hospitality
         "booking.com", "expedia.com", "tripadvisor.com", "orbitz.com", "travelocity.com", "priceline.com", "kayak.com", "skyscanner.com", "trivago.com", "hotwire.com", "hopper.com", "agoda.com", "cheapoair.com", "ebookers.com", "cheapair.com", "airfarewatchdog.com", "lastminute.com", "travelzoo.com", "travelgenio.com", "momondo.com",
 
+        // Airlines
         "delta.com", "united.com", "southwest.com", "american.com", "aa.com", "alaskaair.com", "jetblue.com", "spirit.com", "hawaiianairlines.com", "allegiantair.com", "britishairways.com", "lufthansa.com", "airfrance.com", "klm.com", "emirates.com", "qatarairways.com", "etihad.com", "cathaypacific.com", "singaporeair.com", "aerlingus.com",
 
+        // Hotels
         "marriott.com", "hilton.com", "hyatt.com", "ihg.com", "choicehotels.com", "wyndhamhotels.com", "accor.com", "ritzcarlton.com", "fourseasons.com", "fairmont.com", "starwoodhotels.com", "mgmresorts.com", "wynnresorts.com", "hostels.com", "motel6.com", "bestwestern.com", "radissonhotels.com", "scandichotels.com", "oyorooms.com", "airbnb.com",
 
-        "hertz.com", "avis.com", "budget.com", "enterprise.com", "alamo.com", "nationalcar.com", "thrifty.com", "dollar.com", "sixt.com", "uhaul.com", "pensketruckrental.com", "lyft.com", "uber.com", "grab.com", "bolt.eu", "cabify.com", "lime.me", "bird.co", "spin.app", "turo.com",
+        // Transportation & Delivery
+        "hertz.com", "avis.com", "budget.com", "enterprise.com", "alamo.com", "nationalcar.com", "thrifty.com", "dollar.com", "sixt.com", "uhaul.com", "pensketruckrental.com", "lyft.com", "uber.com", "grab.com", "bolt.eu", "cabify.com", "lime.me", "bird.co", "spin.app", "turo.com", "doordash.com", "grubhub.com", "instacart.com", "postmates.com",
 
+        // Food & Restaurants
         "starbucks.com", "dunkindonuts.com", "mcdonalds.com", "burgerking.com", "wendys.com", "tacobell.com", "pizzahut.com", "dominos.com", "papajohns.com", "chipotle.com", "panerabread.com", "chick-fil-a.com", "kfc.com", "subway.com", "fiveguys.com", "sonicdrivein.com", "arbys.com", "dairyqueen.com", "littlecaesars.com", "jimmyjohns.com",
 
+        // Shipping & Logistics
         "ups.com", "fedex.com", "dhl.com", "usps.com", "canadapost.ca", "royalmail.com", "parcelforce.com", "hermesworld.com", "dpd.com", "tnt.com", "aramex.com", "gls-group.eu", "yamato-hd.co.jp", "japanpost.jp", "laposte.fr", "upsupplychain.com", "fedexcustomcritical.com", "dhlglobalforwarding.com", "ontrac.com", "yrc.com",
 
+        // Media & Entertainment
         "netflix.com", "hulu.com", "disneyplus.com", "hbo.com", "showtime.com", "paramountplus.com", "peacocktv.com", "discoveryplus.com", "espn.com", "fox.com", "abc.com", "nbc.com", "cbs.com", "bbc.co.uk", "cnn.com", "bloomberg.com", "reuters.com", "theguardian.com", "nytimes.com", "wsj.com",
 
+        // Automotive
         "ford.com", "gm.com", "chevrolet.com", "toyota.com", "honda.com", "nissanusa.com", "hyundaiusa.com", "kia.com", "tesla.com", "bmw.com", "mercedes-benz.com", "audi.com", "volkswagen.com", "porsche.com", "volvo.com", "subaru.com", "mazdausa.com", "dodge.com", "jeep.com", "ramtrucks.com",
 
+        // Education
         "harvard.edu", "mit.edu", "stanford.edu", "berkeley.edu", "ox.ac.uk", "cam.ac.uk", "yale.edu", "princeton.edu", "columbia.edu", "ucla.edu", "nyu.edu", "upenn.edu", "caltech.edu", "cmu.edu", "gatech.edu", "uf.edu", "umich.edu", "k12.com", "coursera.org", "edx.org",
 
+        // Non-Profit & NGO
         "un.org", "who.int", "worldbank.org", "imf.org", "wto.org", "unesco.org", "unicef.org", "redcross.org", "salvationarmy.org", "unitedway.org", "habitat.org", "wwf.org", "greenpeace.org", "amnesty.org", "doctorswithoutborders.org", "care.org", "oxfam.org", "mercycorps.org", "charitywater.org", "worldvision.org",
 
+        // Government
         "usa.gov", "irs.gov", "ssa.gov", "nps.gov", "nasa.gov", "gov.uk", "canada.ca", "australia.gov.au", "india.gov.in", "gov.cn", "europa.eu", "whitehouse.gov", "senate.gov", "house.gov", "justice.gov", "ny.gov", "ca.gov", "gov.za", "scot.gov", "uscis.gov",
 
+        // Industrial & Manufacturing
         "caterpillar.com", "johnsoncontrols.com", "3m.com", "honeywell.com", "siemens.com", "ge.com", "emerson.com", "schneider-electric.com", "rockwellautomation.com", "abb.com", "bosch.com", "hitachihightech.com", "daikin.com", "cummins.com", "whirlpoolcorp.com", "jcb.com", "doosan.com", "yamaha-motor.com", "unitedtechnologies.com", "raytheon.com",
 
-        "zillow.com", "realtor.com", "redfin.com", "trulia.com", "homes.com", "remax.com", "century21.com", "coldwellbanker.com", "kw.com", "sothebysrealty.com", "compass.com", "corcoran.com", "zillowgroup.com", "loopnet.com", "officespace.com", "costar.com", "cushmanwakefield.com", "jll.com", "savills.com", "colliers.com"
+        // Real Estate
+        "zillow.com", "realtor.com", "redfin.com", "trulia.com", "homes.com", "remax.com", "century21.com", "coldwellbanker.com", "kw.com", "sothebysrealty.com", "compass.com", "corcoran.com", "zillowgroup.com", "loopnet.com", "officespace.com", "costar.com", "cushmanwakefield.com", "jll.com", "savills.com", "colliers.com",
+
+        // HR & Recruiting
+        "indeed.com", "glassdoor.com", "bamboohr.com", "namely.com", "gusto.com", "adp.com", "paychex.com", "zenefits.com", "rippling.com", "greenhouse.io", "lever.co", "jobvite.com", "icims.com", "taleo.com", "successfactors.com",
+
+        // Legal & Compliance
+        "hellosign.com", "pandadoc.com", "contractworks.com", "concord.com", "ironclad.com", "lexisnexis.com", "westlaw.com", "thomsonreuters.com",
+
+        // Energy & Utilities
+        "eaton.com", "shell.com", "bp.com", "exxonmobil.com", "chevron.com", "conocophillips.com", "phillips66.com", "valero.com", "marathon.com"
     ]);
 
     const personalDomains = new Set([
@@ -114,16 +162,16 @@
     ]);
 
     const BADGE = (txt, title) =>
-        `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
+        `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
     // CHANGED in v74: version updated here
-    window._identifyEmailVersion = "v74";
+    window._identifyEmailVersion = "v75";
 
     // track user's domain and internal trust
     window.__userDomain = "";
     window.__internalSenderTrusted = false;
 
-    // NEW: We’ll track some global info for the safety banner
+    // NEW: We'll track some global info for the safety banner
     window._spfResult = null;
     window._dkimResult = null;
     window._dmarcResult = null;
@@ -148,7 +196,7 @@
             // Re-load on item changed (i.e. user selects a different message)
             Office.context.mailbox.addHandlerAsync(Office.EventType.ItemChanged, loadProps);
 
-            // ---------- NEW: Fix the “X” close button so it closes the entire task pane ----------
+            // ---------- NEW: Fix the "X" close button so it closes the entire task pane ----------
             $(document).on("click", ".MessageBanner-close", function (evt) {
                 evt.preventDefault();
 
@@ -276,7 +324,7 @@
             if (senderCount) {
                 $sec.prepend(BADGE(
                     `${senderCount} match Sender Domain`,
-                    `Sender’s domain (${senderBase}) appears ${senderCount} time(s)`
+                    `Sender's domain (${senderBase}) appears ${senderCount} time(s)`
                 ));
             }
             if (urls.length) {
@@ -488,7 +536,7 @@
         } catch { }
 
         if (isTrustedInternalLink(domain)) {
-            return `<span class="short-url" title="Trusted internal link (domain matches your org)">✔️ ${escapeHtml(s)}</span>`;
+            return `<span class="short-url" title="Trusted internal link (domain matches your org)">✔️ ${escapeHtml(s)}</span>`;
         } else {
             return `<span class="short-url" title="${escapeHtml(u)}">${escapeHtml(s)}</span>`;
         }
@@ -523,7 +571,7 @@
         const vCls = isVerified ? "badge-verified" : "badge-unverified";
         const personal = personalDomains.has(base);
         const cCls = personal ? "badge-personal" : "badge-business";
-        const cTxt = (personal ? "⚠️ " : "") + "Sender is " + (personal ? "Personal Email" : "Business Email");
+        const cTxt = (personal ? "⚠️ " : "") + "Sender is " + (personal ? "Personal Email" : "Business Email");
 
         $("#classBadgeContainer").html(`<div class='badge ${cCls}'>${cTxt}</div>`);
 
@@ -547,7 +595,7 @@
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-spf-warn";
-            hoverText = "No SPF record found — can’t confirm if the sender is genuine.";
+            hoverText = "No SPF record found — can't confirm if the sender is genuine.";
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-spf-pass";
@@ -591,7 +639,7 @@
         } else {
             icon = "⚠️";
             cls = "badge-dkim-fail";
-            hoverText = "Signature invalid — the sender can’t be verified; the email may be forged or altered.";
+            hoverText = "Signature invalid — the sender can't be verified; the email may be forged or altered.";
         }
 
         let label = status ? status.toUpperCase() : "N/A";
@@ -611,7 +659,7 @@
         if (!status || s === "n/a" || s === "none") {
             icon = "❌";
             cls = "badge-dmarc-warn";
-            hoverText = "We couldn't detect that the sender is authentic and the domain matches the brand shown in ‘From:’";
+            hoverText = "We couldn't detect that the sender is authentic and the domain matches the brand shown in 'From:'";
         } else if (s === "pass") {
             icon = "✔️";
             cls = "badge-dmarc-pass";
@@ -623,7 +671,7 @@
         } else {
             icon = "⚠️";
             cls = "badge-dmarc-fail";
-            hoverText = "Policy failed — the domain rejects or can’t validate this email; treat with caution.";
+            hoverText = "Policy failed — the domain rejects or can't validate this email; treat with caution.";
         }
 
         let label = status ? status.toUpperCase() : "N/A";
@@ -636,7 +684,7 @@
     }
 
     function checkAuthHeaders(it) {
-        // If purely internal (From=Sender=User domain), skip SPF/DKIM/DMARC checks and mark them as “internal”
+        // If purely internal (From=Sender=User domain), skip SPF/DKIM/DMARC checks and mark them as "internal"
         const fromEmail = (it.from?.emailAddress || "").toLowerCase();
         const senderEmail = (it.sender?.emailAddress || "").toLowerCase();
         if (
@@ -973,7 +1021,7 @@
 <body style="font-family: sans-serif; margin: 16px;">
   <h2>Anti-Spoofing Checks</h2>
   <p><strong>SPF (Server Policy Framework)</strong>: Verifies the sending server is allowed to send on behalf of that domain.</p>
-  <p><strong>DKIM (DomainKeys Identified Mail)</strong>: Ensures the message was not altered in transit and is signed by the domain’s authorized key.</p>
+  <p><strong>DKIM (DomainKeys Identified Mail)</strong>: Ensures the message was not altered in transit and is signed by the domain's authorized key.</p>
   <p><strong>DMARC (Domain-based Message Authentication, Reporting &amp; Conformance)</strong>: Aligns both SPF and DKIM and declares how to handle failing emails.</p>
   <p>Not all domains implement these checks yet, but their absence can be a red flag. As more providers adopt them,
   missing or failing checks can indicate spoofing or forgery.</p>
@@ -992,11 +1040,11 @@
   <h2>Security Flags</h2>
   <p>This card highlights potential risks in an email, such as suspicious links, attachments, and domain mismatches.</p>
   <ul>
-    <li><strong>Links</strong>: We scan all URLs. External links (not matching your organization or the sender’s domain) are flagged.</li>
+    <li><strong>Links</strong>: We scan all URLs. External links (not matching your organization or the sender's domain) are flagged.</li>
     <li><strong>Attachments</strong>: Attachments can carry malware or harmful content. Always review them carefully.</li>
     <li><strong>Internal vs External Domains</strong>: We compare domains to your own and to known trusted senders. Emails from unexpected external domains may be riskier.</li>
   </ul>
-  <p>Review these flags before interacting with any links or attachments you didn’t expect.</p>
+  <p>Review these flags before interacting with any links or attachments you didn't expect.</p>
 </body>
 </html>
 `;
@@ -1026,7 +1074,7 @@
             const helpHtml = `
                 <h2>Anti-Spoofing Checks</h2>
                 <p><strong>SPF (Server Policy Framework)</strong>: Verifies the sending server is allowed to send on behalf of that domain.</p>
-                <p><strong>DKIM (DomainKeys Identified Mail)</strong>: Ensures the message was not altered in transit and is signed by the domain’s authorized key.</p>
+                <p><strong>DKIM (DomainKeys Identified Mail)</strong>: Ensures the message was not altered in transit and is signed by the domain's authorized key.</p>
                 <p><strong>DMARC (Domain-based Message Authentication, Reporting &amp; Conformance)</strong>: Aligns both SPF and DKIM and declares how to handle failing emails.</p>
                 <p>Not all domains implement these checks yet, but their absence can be a red flag. As more providers adopt them,
                 missing or failing checks can indicate spoofing or forgery.</p>
@@ -1037,11 +1085,11 @@
                 <h2>Security Flags</h2>
                 <p>This card highlights potential risks in an email, such as suspicious links, attachments, and domain mismatches.</p>
                 <ul>
-                    <li><strong>Links</strong>: We scan all URLs. External links (not matching your organization or the sender’s domain) are flagged.</li>
+                    <li><strong>Links</strong>: We scan all URLs. External links (not matching your organization or the sender's domain) are flagged.</li>
                     <li><strong>Attachments</strong>: Attachments can carry malware or harmful content. Always review them carefully.</li>
                     <li><strong>Internal vs External Domains</strong>: We compare domains to your own and to known trusted senders. Emails from unexpected external domains may be riskier.</li>
                 </ul>
-                <p>Review these flags before interacting with any links or attachments you didn’t expect.</p>
+                <p>Review these flags before interacting with any links or attachments you didn't expect.</p>
             `;
             showHelpModal(helpHtml);
         }
