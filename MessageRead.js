@@ -1,4 +1,4 @@
-/* MessageRead.js – v68
+/* MessageRead.js – v75
    CHANGES from v67:
    1) If "Safe" or "PossiblyNotSafe" statuses, forcibly set black text using setProperty("color","#000","important").
    2) Bumped version from 67 to 68.
@@ -31,6 +31,12 @@
    - Bumped version from 73 to 74.
    - No removals, but we log errors if the dialog fails to open.
    - The in-pane overlay is now more opaque (see HTML overrides).
+
+   CHANGED in v75:
+   - Bumped version from 74 to 75.
+   - Added special handling for government domains (.gov, .mil, etc.)
+   - Government emails with matching envelope/header are treated as safe/likely safe similar to internal emails
+   - Verified company domains with matching envelope/header are also treated as likely safe
 */
 
 (function () {
@@ -164,12 +170,14 @@
     const BADGE = (txt, title) =>
         `<span class="inline-badge" title="${title}">⚠️ ${txt}</span>`;
 
-    // CHANGED in v74: version updated here
-    window._identifyEmailVersion = "v75";
+    // CHANGED in v75: version updated here
+    window._identifyEmailVersion = "v76";
 
     // track user's domain and internal trust
     window.__userDomain = "";
     window.__internalSenderTrusted = false;
+    window.__governmentSenderTrusted = false;
+    window.__verifiedCompanySenderTrusted = false;
 
     // NEW: We'll track some global info for the safety banner
     window._spfResult = null;
@@ -179,6 +187,7 @@
     window._isVerifiedSender = false;
     window._externalUrlCount = 0;
     window._attachmentCount = 0;
+    window._envelopeDomain = null;
 
     /* ---------- 2. OFFICE READY ---------- */
     Office.onReady(() => {
@@ -254,6 +263,8 @@
 
         window.__userDomain = fullDomain(Office.context.mailbox.userProfile.emailAddress);
         window.__internalSenderTrusted = false;
+        window.__governmentSenderTrusted = false;
+        window.__verifiedCompanySenderTrusted = false;
 
         // Reset our tracking for new item
         window._spfResult = null;
@@ -263,6 +274,7 @@
         window._isVerifiedSender = false;
         window._externalUrlCount = 0;
         window._attachmentCount = 0;
+        window._envelopeDomain = null;
 
         // Fill item props
         $("#dateTimeCreated").text(it.dateTimeCreated.toLocaleString());
@@ -564,7 +576,9 @@
         const isVerified =
             verifiedSenders.includes(email) ||
             verifiedDomains.has(base) ||
-            window.__internalSenderTrusted;
+            window.__internalSenderTrusted ||
+            window.__governmentSenderTrusted ||
+            window.__verifiedCompanySenderTrusted;
 
         window._isVerifiedSender = isVerified;
 
@@ -683,16 +697,149 @@
         return `<div class="badge ${cls}" title="${hoverText}">${icon}&nbsp;${label}</div>`;
     }
 
+    // Helper function to check if a domain is a government domain
+    function isGovernmentDomain(domain) {
+        if (!domain) return false;
+        const lower = domain.toLowerCase();
+        // Check for common government TLDs and subdomains
+        return lower.endsWith('.gov') || 
+               lower.endsWith('.mil') || 
+               lower.endsWith('.gov.uk') || 
+               lower.endsWith('.gov.au') || 
+               lower.endsWith('.gov.ca') || 
+               lower.endsWith('.gov.in') || 
+               lower.endsWith('.gov.za') || 
+               lower.endsWith('.govt.nz') || 
+               lower.endsWith('.gob.mx') || 
+               lower.endsWith('.gouv.fr') || 
+               lower.endsWith('.gov.br') || 
+               lower.endsWith('.gov.cn') || 
+               lower.endsWith('.gov.jp') || 
+               lower.endsWith('.gov.sg') || 
+               lower.endsWith('.europa.eu') ||
+               lower === 'whitehouse.gov' ||
+               lower === 'senate.gov' ||
+               lower === 'house.gov' ||
+               lower === 'uscis.gov' ||
+               lower === 'justice.gov' ||
+               lower === 'state.gov' ||
+               lower === 'defense.gov' ||
+               lower === 'dhs.gov' ||
+               lower === 'fbi.gov' ||
+               lower === 'cia.gov' ||
+               lower === 'nsa.gov' ||
+               lower === 'treasury.gov' ||
+               lower === 'commerce.gov' ||
+               lower === 'energy.gov' ||
+               lower === 'hhs.gov' ||
+               lower === 'dot.gov' ||
+               lower === 'ed.gov' ||
+               lower === 'va.gov' ||
+               lower === 'homeland.gov' ||
+               lower === 'epa.gov' ||
+               lower === 'nasa.gov' ||
+               lower === 'ssa.gov' ||
+               lower === 'irs.gov' ||
+               lower === 'usda.gov' ||
+               lower === 'doi.gov' ||
+               lower === 'labor.gov' ||
+               lower === 'opm.gov' ||
+               lower === 'gsa.gov' ||
+               lower === 'nsf.gov' ||
+               lower === 'usaid.gov' ||
+               lower === 'cdc.gov' ||
+               lower === 'cms.gov' ||
+               lower === 'nih.gov' ||
+               lower === 'fda.gov' ||
+               lower === 'sec.gov' ||
+               lower === 'ftc.gov' ||
+               lower === 'fcc.gov' ||
+               lower === 'ferc.gov' ||
+               lower === 'nlrb.gov' ||
+               lower === 'usps.com' || // USPS uses .com
+               lower === 'amtrak.com' || // Amtrak uses .com
+               lower === 'si.edu' || // Smithsonian
+               lower === 'loc.gov' || // Library of Congress
+               lower === 'archives.gov' ||
+               lower === 'ncbi.nlm.nih.gov' ||
+               lower === 'clinicaltrials.gov' ||
+               lower === 'pubmed.gov' ||
+               lower === 'medlineplus.gov' ||
+               lower === 'nist.gov' ||
+               lower === 'noaa.gov' ||
+               lower === 'weather.gov' ||
+               lower === 'earthquake.usgs.gov' ||
+               lower === 'usgs.gov' ||
+               lower === 'fema.gov' ||
+               lower === 'tsa.gov' ||
+               lower === 'ice.gov' ||
+               lower === 'cbp.gov' ||
+               lower === 'secretservice.gov' ||
+               lower === 'atf.gov' ||
+               lower === 'dea.gov' ||
+               lower === 'marshals.gov' ||
+               lower === 'bop.gov' ||
+               lower === 'nps.gov' ||
+               lower === 'blm.gov' ||
+               lower === 'fws.gov' ||
+               lower === 'fs.fed.us' ||
+               lower === 'recreation.gov' ||
+               lower === 'usa.gov' ||
+               lower === 'vote.gov' ||
+               lower === 'medicare.gov' ||
+               lower === 'medicaid.gov' ||
+               lower === 'healthcare.gov' ||
+               lower === 'export.gov' ||
+               lower === 'trade.gov' ||
+               lower === 'sba.gov' ||
+               lower === 'mbda.gov' ||
+               lower === 'eda.gov' ||
+               lower === 'selectusa.gov' ||
+               lower === 'nhtsa.gov' ||
+               lower === 'fmcsa.gov' ||
+               lower === 'fra.gov' ||
+               lower === 'faa.gov' ||
+               lower === 'phmsa.gov' ||
+               lower === 'marad.gov' ||
+               lower === 'stb.gov' ||
+               lower === 'ntsb.gov' ||
+               lower === 'cpsc.gov' ||
+               lower === 'cftc.gov' ||
+               lower === 'fdic.gov' ||
+               lower === 'ncua.gov' ||
+               lower === 'occ.gov' ||
+               lower === 'federalreserve.gov' ||
+               lower === 'consumerfinance.gov' ||
+               lower === 'hud.gov' ||
+               lower === 'ginniemae.gov' ||
+               lower === 'eeoc.gov' ||
+               lower === 'ada.gov' ||
+               lower === 'dol.gov' ||
+               lower === 'msha.gov' ||
+               lower === 'osha.gov' ||
+               lower === 'pbgc.gov' ||
+               lower === 'nlrb.gov' ||
+               lower === 'flra.gov' ||
+               lower === 'usitc.gov' ||
+               lower === 'nrc.gov' ||
+               lower === 'osti.gov' ||
+               lower === 'nrel.gov' ||
+               lower === 'eere.energy.gov';
+    }
+
     function checkAuthHeaders(it) {
         // If purely internal (From=Sender=User domain), skip SPF/DKIM/DMARC checks and mark them as "internal"
         const fromEmail = (it.from?.emailAddress || "").toLowerCase();
         const senderEmail = (it.sender?.emailAddress || "").toLowerCase();
+        const fromDomain = fullDomain(fromEmail);
+        const senderDomain = fullDomain(senderEmail);
+        
         if (
             fromEmail && senderEmail &&
             fromEmail === senderEmail &&
             window.__userDomain &&
-            domainsMatchForInternal(fullDomain(fromEmail), window.__userDomain) &&
-            domainsMatchForInternal(fullDomain(senderEmail), window.__userDomain) &&
+            domainsMatchForInternal(fromDomain, window.__userDomain) &&
+            domainsMatchForInternal(senderDomain, window.__userDomain) &&
             !personalDomains.has(window.__userDomain.toLowerCase())
         ) {
             // purely internal
@@ -737,6 +884,9 @@
                     if (mm) dkimDom = baseDom(mm[1].trim().toLowerCase());
                 }
             });
+
+            // Store envelope domain for later use
+            window._envelopeDomain = envDom;
 
             window._spfResult = spf?.toLowerCase() || "none";
             window._dkimResult = dkim?.toLowerCase() || "none";
@@ -794,6 +944,22 @@
                 (dmarc && dmarc !== "pass")
             ) {
                 $("#auth-card").removeClass("collapsed");
+            }
+
+            // Check for government sender trust
+            if (fromDomain && envDom && 
+                domainsMatchForInternal(fromDomain, envDom) &&
+                isGovernmentDomain(fromDomain)) {
+                window.__governmentSenderTrusted = true;
+                console.log("Detected government sender with matching envelope");
+            }
+
+            // Check for verified company sender trust
+            if (fromDomain && envDom && 
+                domainsMatchForInternal(fromDomain, envDom) &&
+                verifiedDomains.has(baseDom(fromDomain))) {
+                window.__verifiedCompanySenderTrusted = true;
+                console.log("Detected verified company sender with matching envelope");
             }
 
             // internal trust logic
@@ -954,6 +1120,17 @@
             } else {
                 bannerEl.textContent = "⚠️ Caution – One or more checks failed";
             }
+        } else if (status === "LikelySafeGov") {
+            // Government emails with links/attachments - still green but with caution text
+            bannerEl.style.backgroundColor = "#c8f7c5"; // green
+            bannerEl.style.setProperty("color", "#000", "important");
+            bannerEl.textContent = "✅ Likely Safe (government), but use caution – Contains links or attachments";
+        } else if (status === "LikelySafeCompany") {
+            // Verified company emails - yellow caution
+            const cautionColor = isDarkMode() ? "#5E4E1C" : "#FFF4CF";
+            bannerEl.style.backgroundColor = cautionColor;
+            bannerEl.style.setProperty("color", "#000", "important");
+            bannerEl.textContent = "⚠️ Likely Safe (verified company), but use caution";
         } else {
             bannerEl.style.backgroundColor = "#f6989d"; // a softer red
             bannerEl.textContent = "❌ Unsafe – Clear indicators of risk";
@@ -968,6 +1145,20 @@
             } else {
                 return "Safe";
             }
+        }
+
+        // Check for government sender with matching envelope
+        if (window.__governmentSenderTrusted && !mismatch) {
+            if (urlCount > 0 || attachCount > 0) {
+                return "LikelySafeGov"; // Still green but with caution message
+            } else {
+                return "Safe";
+            }
+        }
+
+        // Check for verified company sender with matching envelope
+        if (window.__verifiedCompanySenderTrusted && !mismatch) {
+            return "LikelySafeCompany"; // Always show as likely safe with caution
         }
 
         // 1) If SPF/DKIM/DMARC any is "fail", or domain mismatch => "Unsafe"
