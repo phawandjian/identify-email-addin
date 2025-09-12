@@ -15,11 +15,11 @@
     <script src="https://phawandjian.github.io/identify-email-addin/Scripts/MessageBanner.js"></script>
 
     <!-- our CSS/JS assets hosted on GitHub Pages -->
-    <!-- NOTE: We did not change the CSS file version. -->
+    <!-- NOTE: CSS version remains unchanged. -->
     <link href="https://phawandjian.github.io/identify-email-addin/MessageRead.css?v=13" rel="stylesheet" />
 
-    <!-- CHANGED in v74: bumped JS version from v=73 to v=74 -->
-    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=76"></script>
+    <!-- UPDATED to v=75 -->
+    <script src="https://phawandjian.github.io/identify-email-addin/MessageRead.js?v=75"></script>
 
     <!-- Fabric core from Microsoft -->
     <link rel="stylesheet"
@@ -49,27 +49,26 @@
             display: none;
         }
 
-        /* NEW: Banner at the top for "Is this email safe?" */
+        /* Banner at the top for "Is this email safe?" */
         .safety-banner {
             font-size: 15px;
             font-weight: bold;
             margin: 8px 16px;
             padding: 12px;
             border-radius: 10px;
-            color: #000; /* Text color is managed in JS if needed. */
+            color: #000; /* Text color may be overridden in JS */
         }
 
-        /* Existing help-modal-overlay styles (unchanged except see below) */
+        /* Help modal overlay (more opaque for readability) */
         .help-modal-overlay {
             position: fixed;
-            /* existing z-index was 9999; we’ll raise it to 999999 in case something else is on top */
             z-index: 999999;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: none; /* hidden by default */
+            background-color: rgba(0, 0, 0, 0.7) !important;
+            display: none;
         }
 
         .help-modal-content {
@@ -94,37 +93,34 @@
             font-weight: bold;
         }
 
-        /*
-         CHANGED in v74: Additional overrides to ensure the in-pane overlay is not too transparent
-         and text is fully readable. We do NOT remove the old code; we simply override it.
-        */
-        .help-modal-overlay {
-            background-color: rgba(0, 0, 0, 0.7) !important; /* darken the overlay so text behind is hidden */
-        }
-
+        /* Force modal readability in light/dark */
         .help-modal-content {
-            background-color: #fff !important; /* force white in normal mode */
+            background-color: #fff !important;
             color: #000 !important;
             opacity: 1.0 !important;
         }
 
         body.dark-mode .help-modal-content {
-            background-color: #2c2c2c !important; /* darker for dark mode */
+            background-color: #2c2c2c !important;
             color: #e8e8e8 !important;
         }
     </style>
 </head>
 <body class="ms-Fabric" dir="ltr">
 
-    <!-- HEADER -->
+    <!-- HEADER (now also contains subject + badges strip container) -->
     <div id="content-header">
+        <div style="flex-grow: 1;">
+            <div id="subjectLine" style="font-weight: bold; font-size: 15px; margin-bottom: 4px;"></div>
+            <div id="badgeStrip" class="badge-cell"></div>
+        </div>
         <label class="theme-toggle">
             <input type="checkbox" id="themeToggle" aria-label="Toggle dark mode">
             <span class="theme-label">Dark&nbsp;Mode</span>
         </label>
     </div>
 
-    <!-- NEW: High-level banner answering “Is this email safe?” -->
+    <!-- High-level banner answering “Is this email safe?” -->
     <div id="safetyBanner" class="safety-banner"></div>
 
     <!-- VERIFIED SENDER (default expanded now) -->
@@ -166,13 +162,10 @@
             <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
             <svg viewBox="0 0 16 16"><path d="M1 8h14M8 1v14" /></svg>
             <span>Links</span>
-            <span id="linksBadgeContainer" style="display:none" class="badge-cell">
-                <!-- placeholder if you ever want a separate links badge container -->
-            </span>
+            <span id="linksBadgeContainer" style="display:none" class="badge-cell"></span>
         </div>
         <div class="card-body">
             <div class="ms-Grid">
-                <!-- preserving old attachments row (hidden so we do not remove code) -->
                 <div class="ms-Grid-row" style="display: none;">
                     <div class="ms-Grid-col ms-sm5">
                         attachments (deprecated in v37, see new attachments-card)
@@ -187,7 +180,7 @@
         </div>
     </div>
 
-    <!-- ATTACHMENTS (new separate card) -->
+    <!-- ATTACHMENTS (separate card) -->
     <div class="card collapsible collapsed" id="attachments-card">
         <div class="section-title">
             <svg class="chevron" viewBox="0 0 16 16"><path d="M5 3l6 5-6 5z" /></svg>
@@ -228,8 +221,6 @@
         </div>
         <div class="card-body">
             <div class="ms-Grid">
-
-                <!-- CHANGED: user-friendly labels + tooltips -->
                 <div class="ms-Grid-row" title="The From address of this message">
                     <div class="ms-Grid-col ms-sm5">From Address</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
@@ -305,8 +296,6 @@
         </div>
         <div class="card-body">
             <div class="ms-Grid">
-
-                <!-- CHANGED: user-friendly labels + tooltips -->
                 <div class="ms-Grid-row" title="When this email was originally created">
                     <div class="ms-Grid-col ms-sm5">Date Time Created</div>
                     <div class="ms-Grid-col ms-sm7 copy-field">
